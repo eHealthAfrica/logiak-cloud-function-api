@@ -1,0 +1,13 @@
+aether.python
+coverage
+firebase_admin
+flask
+flake8
+functions-framework==1.0.0
+google.cloud
+google-cloud-pubsub
+pytest
+pytest-cov
+pytest-mock
+pytest-runner
+requests
