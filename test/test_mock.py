@@ -62,6 +62,12 @@ def test__require_auth(path, headers, code):
 
 @pytest.mark.parametrize('path,code', [
     (
+        '',
+        200),
+    (
+        '/app/0.2.4/en',
+        200),
+    (
         '/moota',
         404),
     (
@@ -112,7 +118,10 @@ def test__meta(path, code, AuthHeaders):  # noqa
         200),
     (
         '/data/missing-type/query',
-        404)
+        404),
+    (
+        '/allocation/query',
+        200),
 ])
 def test__data(path, code, AuthHeaders):  # noqa
     request = MockPostRequest(path=path, headers=AuthHeaders)

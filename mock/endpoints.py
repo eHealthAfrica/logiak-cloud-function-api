@@ -140,20 +140,22 @@ def __meta_app():
 
 @require_auth
 def handle_meta(request):
+    path = request.path.split('/')
     try:
-        path = request.path.split('/')[1:]
-    except Exception:
-        return Response(f'Not Found @ {request.path}', 404)
-    if path[0] == 'meta' and len(path) == 1:
+        local_path = (path.index('meta') + 1)
+    except ValueError:
+        local_path = 1
+    path = path[local_path:]
+    if len(path) == 0:
         return __meta_info()
     elif len(path) == 1:
         return Response(f'Not Found @ {path}', 404)
-    elif path[1] == 'schema':
-        if len(path) == 3:
+    elif path[0] == 'schema':
+        if len(path) == 2:
             return __meta_list_schemas()
-        if len(path) == 4:
-            return __meta_schema(path[3])
-    elif path[1] == 'app':
+        if len(path) == 3:
+            return __meta_schema(path[2])
+    elif path[0] == 'app':
         return __meta_app()
     return Response(f'Not Found @ {path}', 404)
 
@@ -169,16 +171,18 @@ def __data_all(name):
 
 @require_auth
 def handle_data(request):
+    path = request.path.split('/')
     try:
-        path = request.path.split('/')[1:]
-    except Exception:
-        return Response(f'Not Found @ {request.path}', 404)
+        local_path = (path.index('data') + 1)
+    except ValueError:
+        local_path = 1
+    path = path[local_path:]
     try:
-        if path[2] == 'query':
-            name = path[1]
+        if path[1] == 'query':
+            name = path[0]
             if name in DATA:  # keyError from Generator was causing problems
                 return Response(
-                    __data_all(path[1]),
+                    __data_all(path[0]),
                     200,
                     mimetype='application/json')
     except Exception:
