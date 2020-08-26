@@ -1,12 +1,24 @@
 import json
+import pytest
 from werkzeug.datastructures import Headers, MultiDict
 
 
+from test.app.mock import endpoints
+
+
+@pytest.fixture(scope='function')
+def AuthHeaders():
+    return {
+        'logiak_user_id': endpoints.MOCK_USER, 'logiak_session_key': endpoints.TOKEN
+    }
+
+
 class MockPostRequest(object):
-    def __init__(self, form=None, headers=None, json=None):
+    def __init__(self, path='/', form=None, headers=None, json=None):
         self.headers = Headers(headers)
         self.form = MultiDict(form)
         self.json = json
+        self.path = path
 
     def get_json(self, *args, **kwargs):
         return self.json or self.form.to_dict()

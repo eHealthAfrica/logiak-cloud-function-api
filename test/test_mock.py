@@ -3,7 +3,7 @@ import pytest
 
 from test.app.mock import endpoints
 
-from . import MockPostRequest
+from . import AuthHeaders, MockPostRequest  # noqa (fixtures import strangely)
 
 
 @pytest.mark.parametrize('form,headers,json,code', [
@@ -32,6 +32,94 @@ from . import MockPostRequest
 def test__auth(form, headers, json, code):
     request = MockPostRequest(form=form, headers=headers, json=json)
     res = endpoints.handle_auth(request)
+    assert(res.status_code == code), res.data
+    if code == 200:
+        print(res.data)
+        assert(res.data is not None), res.data
+
+
+@pytest.mark.parametrize('path,headers,code', [
+    (
+        '/',
+        {'uname': 'a', 'password': 'password'},
+        400),
+    (
+        '/',
+        {'logiak_user_id': endpoints.MOCK_USER, 'logiak_session_key': 'bad-token'},
+        401),
+    (
+        '/',
+        {'logiak_user_id': endpoints.MOCK_USER, 'logiak_session_key': endpoints.TOKEN},
+        200)
+])
+@pytest.mark.unit
+def test__require_auth(path, headers, code):
+    request = MockPostRequest(path=path, headers=headers)
+    res = endpoints.handle_no_op(request)
+    assert(res.status_code == code), res.data
+    if code == 200:
+        print(res.data)
+        assert(res.data is not None), res.data
+
+
+@pytest.mark.parametrize('path,code', [
+    (
+        '/moota',
+        404),
+    (
+        '/meta',
+        200),
+    (
+        '/meta/something',
+        404),
+    (
+        '/meta/app/0.2.4/en',
+        200),
+    (
+        '/meta/app/still/valid',
+        200),
+    (
+        '/meta/schema/0.2.4',
+        200),
+    (
+        '/meta/schema/0.2.4/missing',
+        404),
+    (
+        '/meta/schema/9.9.9/allocation',
+        200)
+])
+def test__meta(path, code, AuthHeaders):  # noqa
+    request = MockPostRequest(path=path, headers=AuthHeaders)
+    res = endpoints.handle_meta(request)
+    assert(res.status_code == code), res.data
+    if code == 200:
+        print(res.data)
+        assert(res.data is not None), res.data
+
+
+@pytest.mark.parametrize('path,code', [
+    (
+        '/data',
+        404),
+    (
+        '/data/allocation/not-supported',
+        404),
+    (
+        '/data/something',
+        404),
+    (
+        '/data/allocation/query',
+        200),
+    (
+        '/data/batch/query',
+        200),
+    (
+        '/data/missing-type/query',
+        404)
+])
+def test__data(path, code, AuthHeaders):  # noqa
+    request = MockPostRequest(path=path, headers=AuthHeaders)
+    res = endpoints.handle_data(request)
     assert(res.status_code == code), res.data
     if code == 200:
         print(res.data)
