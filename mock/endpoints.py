@@ -18,11 +18,43 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import time
+
 from flask import Response
+
+TOKEN = '07734'
+
+
+def __missing_required(d, required):
+    return [k for k in required if k not in d]
+
+
+def __match_all(d, expects):
+    for k, v in expects.items():
+        if d[k] != v:
+            return False
+    return True
 
 
 def handle_auth(request):
-    return Response({}, 200)
+    MOCK_USER = 'user@eha.org'
+    MOCK_PASSWORD = 'password'
+
+    expected = {'username': MOCK_USER, 'password': MOCK_PASSWORD}
+    data = request.get_json(force=True, silent=True)
+    if (missing := __missing_required(data, expected.keys())):
+        return Response(f'Missing expected data: {missing}', 400)
+    if not __match_all(data, expected):
+        return Response('Unauthorized', 401)
+    return Response(
+        {
+            MOCK_USER: {
+                'session_key': TOKEN,
+                'start_time': time.time(),
+                'session_length': -1
+            }
+        },
+        200)
 
 
 def handle_meta(request):
