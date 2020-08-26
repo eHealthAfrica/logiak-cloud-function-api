@@ -4,16 +4,11 @@ from . import main
 app = Flask(__name__)
 
 
-@app.route('/auth', methods=['POST'])
-def auth():
-    return main._auth(request)
-
-
-@app.route('/meta', methods=['GET'])
-def meta():
-    return main._meta(request)
-
-
-@app.route('/data', methods=['GET', 'POST'])
-def data():
-    return main._data(request)
+@app.route('/<path:text>', methods=['GET', 'POST'])
+def all(text):
+    if text.startswith('auth'):
+        return main._auth(request)
+    if text.startswith('meta'):
+        return main._meta(request)
+    if text.startswith('data'):
+        return main._data(request)

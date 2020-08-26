@@ -34,7 +34,6 @@ def test__auth(form, headers, json, code):
     res = endpoints.handle_auth(request)
     assert(res.status_code == code), res.data
     if code == 200:
-        print(res.data)
         assert(res.data is not None), res.data
 
 
@@ -58,7 +57,6 @@ def test__require_auth(path, headers, code):
     res = endpoints.handle_no_op(request)
     assert(res.status_code == code), res.data
     if code == 200:
-        print(res.data)
         assert(res.data is not None), res.data
 
 
@@ -93,7 +91,6 @@ def test__meta(path, code, AuthHeaders):  # noqa
     res = endpoints.handle_meta(request)
     assert(res.status_code == code), res.data
     if code == 200:
-        print(res.data)
         assert(res.data is not None), res.data
 
 
@@ -122,5 +119,4 @@ def test__data(path, code, AuthHeaders):  # noqa
     res = endpoints.handle_data(request)
     assert(res.status_code == code), res.data
     if code == 200:
-        print(res.data)
         assert(res.data is not None), res.data

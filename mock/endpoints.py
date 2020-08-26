@@ -76,7 +76,6 @@ def require_auth(fn):
     @wraps(fn)
     def wrapper(request, *args, **kwargs):
         headers = dict(request.headers)
-        print(headers)
         required = {
             'Logiak-User-Id': MOCK_USER,
             'Logiak-Session-Key': TOKEN
@@ -144,11 +143,11 @@ def handle_meta(request):
     try:
         path = request.path.split('/')[1:]
     except Exception:
-        return Response('Not Found', 404)
+        return Response(f'Not Found @ {request.path}', 404)
     if path[0] == 'meta' and len(path) == 1:
         return __meta_info()
     elif len(path) == 1:
-        return Response('Not Found', 404)
+        return Response(f'Not Found @ {path}', 404)
     elif path[1] == 'schema':
         if len(path) == 3:
             return __meta_list_schemas()
@@ -173,7 +172,7 @@ def handle_data(request):
     try:
         path = request.path.split('/')[1:]
     except Exception:
-        return Response('Not Found', 404)
+        return Response(f'Not Found @ {request.path}', 404)
     try:
         if path[2] == 'query':
             name = path[1]
@@ -184,4 +183,4 @@ def handle_data(request):
                     mimetype='application/json')
     except Exception:
         pass
-    return Response('Not Found', 404)
+    return Response(f'Not Found @ {path}', 404)
