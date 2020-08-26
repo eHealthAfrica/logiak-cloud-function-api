@@ -4,5 +4,7 @@ services:
 
   test-library:
     build: .
+    environment:
+      TEST: 'true'
     entrypoint:
       "/test/entrypoint.sh"

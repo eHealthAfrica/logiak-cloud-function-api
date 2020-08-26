@@ -19,18 +19,18 @@
 # under the License.
 
 
-from mock import endpoints
+from .mock import endpoints
 
 
 # Cloud Function Entrypoint
 
 def _auth(request):
-    return endpoints.handle_auth
+    return endpoints.handle_auth(request)
 
 
 def _meta(request):
-    return endpoints.handle_meta
+    return endpoints.handle_meta(request)
 
 
 def _data(request):
-    return endpoints.handle_data
+    return endpoints.handle_data(request)

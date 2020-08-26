@@ -18,6 +18,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 from functools import wraps
 import json
 import time
@@ -25,13 +26,18 @@ import time
 from flask import Response
 from spavro.schema import parse
 
+if os.environ.get('TEST', False):
+    PATH = os.getcwd() + '/app/mock'
+else:
+    PATH = os.getcwd() + '/mock'
+
 # fake credentials
 MOCK_USER = 'user@eha.org'
 MOCK_PASSWORD = 'password'
 TOKEN = '07734'
 
 # fake data
-MOCK_PROJECT = '/test/app/mock/lomis'
+MOCK_PROJECT = f'{PATH}/lomis'
 META_FOLDER = f'{MOCK_PROJECT}/meta'
 DATA_FOLDER = f'{MOCK_PROJECT}/data'
 SCHEMAS = {}
