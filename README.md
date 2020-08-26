@@ -41,11 +41,11 @@ On the back-end, we do the following.
  - If successful, return the session object -> the caller as JSON.
 
 
-ALL other operations require `logiak_user_id` and `logiak_session_key` be included in `Headers`.
+ALL other operations require `Logiak-User-Id` and `Logiak-Session-Key` be included in `Headers`.
 
 ### Metadata Operations `/meta`
 
-_*requires headers*_ `logiak_session_key` && `logiak_user_id`
+_*requires headers*_ `Logiak-Session-Key` && `Logiak-User-Id`
 
 
 
@@ -79,7 +79,7 @@ References RTDB: objects/{app_id}/settings/{app_version(escaped)}/{schema_name} 
 
 ### Data Operations `/data`
 
-_*requires headers*_ `logiak_session_key` && `logiak_user_id`
+_*requires headers*_ `Logiak-Session-Key` && `Logiak-User-Id`
 
 
 #### `/data/{data_type}/query` [POST]

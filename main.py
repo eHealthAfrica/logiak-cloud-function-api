@@ -19,7 +19,10 @@
 # under the License.
 
 
-from .mock import endpoints
+try:
+    from .mock import endpoints
+except ImportError:
+    from mock import endpoints
 
 
 # Cloud Function Entrypoint

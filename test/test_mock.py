@@ -45,11 +45,11 @@ def test__auth(form, headers, json, code):
         400),
     (
         '/',
-        {'logiak_user_id': endpoints.MOCK_USER, 'logiak_session_key': 'bad-token'},
+        {'Logiak-User-Id': endpoints.MOCK_USER, 'Logiak-Session-Key': 'bad-token'},
         401),
     (
         '/',
-        {'logiak_user_id': endpoints.MOCK_USER, 'logiak_session_key': endpoints.TOKEN},
+        {'Logiak-User-Id': endpoints.MOCK_USER, 'Logiak-Session-Key': endpoints.TOKEN},
         200)
 ])
 @pytest.mark.unit

@@ -9,7 +9,7 @@ from test.app.mock import endpoints
 @pytest.fixture(scope='function')
 def AuthHeaders():
     return {
-        'logiak_user_id': endpoints.MOCK_USER, 'logiak_session_key': endpoints.TOKEN
+        'Logiak-User-Id': endpoints.MOCK_USER, 'Logiak-Session-Key': endpoints.TOKEN
     }
 
 

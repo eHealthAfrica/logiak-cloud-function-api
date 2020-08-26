@@ -23,7 +23,7 @@ from functools import wraps
 import json
 import time
 
-from flask import Response
+from flask import jsonify, make_response, Response
 from spavro.schema import parse
 
 if os.environ.get('TEST', False):
@@ -58,6 +58,8 @@ with open(f'{DATA_FOLDER}/data.json') as f:
 # helpers
 
 def __missing_required(d, required):
+    if not d:
+        return required
     return [k for k in required if k not in d]
 
 
@@ -74,9 +76,10 @@ def require_auth(fn):
     @wraps(fn)
     def wrapper(request, *args, **kwargs):
         headers = dict(request.headers)
+        print(headers)
         required = {
-            'logiak_session_key': TOKEN,
-            'logiak_user_id': MOCK_USER
+            'Logiak-User-Id': MOCK_USER,
+            'Logiak-Session-Key': TOKEN
         }
         if (missing := __missing_required(headers, required.keys())):  # noqa
             return Response(f'Missing required headers: {missing}', 400)
@@ -96,14 +99,15 @@ def handle_auth(request):
     if not __match_all(data, expected):
         return Response('Unauthorized', 401)
     return Response(
-        {
+        json.dumps({
             MOCK_USER: {
                 'session_key': TOKEN,
                 'start_time': time.time(),
                 'session_length': -1
             }
-        },
-        200)
+        }),
+        200,
+        mimetype='application/json')
 
 
 @require_auth
@@ -112,22 +116,27 @@ def handle_no_op(request):
 
 
 def __meta_info():
-    return Response(APP_INFO, 200)
+    return Response(json.dumps(APP_INFO), 200, mimetype='application/json')
 
 
 def __meta_list_schemas():
-    return Response([k for k in SCHEMA_OBJ], 200)
+    return Response(
+        json.dumps([k for k in SCHEMA_OBJ]),
+        200,
+        mimetype='application/json'
+    )
 
 
 def __meta_schema(name):
     try:
-        return Response(SCHEMA_OBJ[name], 200)
+        return Response(
+            json.dumps(SCHEMA_OBJ[name]), 200, mimetype='application/json')
     except KeyError:
         return Response(f'schema : {name} not found', 404)
 
 
 def __meta_app():
-    return Response(APP, 200)
+    return Response(json.dumps(APP), 200, mimetype='application/json')
 
 
 @require_auth
@@ -169,7 +178,10 @@ def handle_data(request):
         if path[2] == 'query':
             name = path[1]
             if name in DATA:  # keyError from Generator was causing problems
-                return Response(__data_all(path[1]), 200)
+                return Response(
+                    __data_all(path[1]),
+                    200,
+                    mimetype='application/json')
     except Exception:
         pass
     return Response('Not Found', 404)
