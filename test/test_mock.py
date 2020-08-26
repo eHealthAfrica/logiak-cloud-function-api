@@ -62,7 +62,7 @@ def test__require_auth(path, headers, code):
 
 @pytest.mark.parametrize('path,code', [
     (
-        '',
+        '/app',
         200),
     (
         '/app/0.2.4/en',
@@ -71,7 +71,7 @@ def test__require_auth(path, headers, code):
         '/moota',
         404),
     (
-        '/meta',
+        '/meta/app',
         200),
     (
         '/meta/something',

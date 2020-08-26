@@ -129,7 +129,7 @@ def __meta_list_schemas():
 def __meta_schema(name):
     try:
         return Response(
-            json.dumps(SCHEMA_OBJ[name]), 200, mimetype='application/json')
+            json.dumps(json.loads(SCHEMA_OBJ[name])), 200, mimetype='application/json')
     except KeyError:
         return Response(f'schema : {name} not found', 404)
 
@@ -146,17 +146,16 @@ def handle_meta(request):
     except ValueError:
         local_path = 1
     path = path[local_path:]
-    if len(path) == 0:
-        return __meta_info()
-    elif len(path) == 1:
-        return Response(f'Not Found @ {path}', 404)
-    elif path[0] == 'schema':
+    if path[0] == 'schema':
         if len(path) == 2:
             return __meta_list_schemas()
         if len(path) == 3:
             return __meta_schema(path[2])
     elif path[0] == 'app':
-        return __meta_app()
+        if len(path) < 2:
+            return __meta_info()
+        else:
+            return __meta_app()
     return Response(f'Not Found @ {path}', 404)
 
 

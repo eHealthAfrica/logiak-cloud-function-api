@@ -50,7 +50,7 @@ _*requires headers*_ `Logiak-Session-Key` && `Logiak-User-Id`
 
 
 
-#### `/meta` [GET]
+#### `/meta/app` [GET]
 
 Current Metadata about the most current deployed App Version
 
