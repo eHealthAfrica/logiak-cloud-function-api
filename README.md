@@ -97,3 +97,72 @@ _*requires headers*_ `Logiak-Session-Key` && `Logiak-User-Id`
  - Adds values to system fields
  - Validates Data
  - Creates or Overwrites instance in database
+
+
+
+
+## Example
+
+Authenticate session.
+
+```bash
+curl -X POST \
+    --header "Content-Type: application/json" \
+    --data '{"username":"${USER_ID}","password":"password"}' \
+    https://${SERVER}/auth
+```
+
+Save the returned session_key to use in subsequent calls. 
+
+
+Get the current metadata for the app. Note the app version for subsequent calls.
+
+```bash
+curl -X GET \
+    --header "logiak_user_id: ${USER_ID}" \
+    --header "logiak_session_key: ${SESSION_KEY}" \
+    https://${SERVER}/meta/app
+```
+
+Get other meta data about the current version of the app.
+
+
+`/meta/app/{version}/{language} -> The App definition`
+
+```bash
+curl -X GET \
+    --header "logiak_user_id: ${USER_ID}" \
+    --header "logiak_session_key: ${SESSION_KEY}" \
+    https://${SERVER}/meta/app/0.0.26/en
+```
+
+
+`/meta/schema/{version} -> List of available [Schema]`
+
+```bash
+curl -X GET \
+    --header "logiak_user_id: ${USER_ID}" \
+    --header "logiak_session_key: ${SESSION_KEY}" \
+    https://${SERVER}/meta/schema/0.0.26
+```
+
+
+`/meta/schema/{version}/{type} -> A single Schema`
+
+```bash
+curl -X GET \
+    --header "logiak_user_id: ${USER_ID}" \
+    --header "logiak_session_key: ${SESSION_KEY}" \
+    https://${SERVER}/meta/schema/0.0.26/batch
+```
+
+
+
+`Get Data by Type /data/{type}/query`
+
+```bash
+curl -X POST \
+    --header "logiak_user_id: ${USER_ID}" \
+    --header "logiak_session_key: ${SESSION_KEY}" \
+    https://${SERVER}/data/batch/query
+```bash
