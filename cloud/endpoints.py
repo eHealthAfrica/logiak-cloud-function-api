@@ -26,6 +26,7 @@ from flask import jsonify, make_response, Response
 from spavro.schema import parse
 
 from . import fb_utils
+from .utils import missing_required
 from .auth import AuthHandler, require_auth
 
 SCHEMAS = {}
@@ -36,24 +37,18 @@ RTDB = fb_utils.RTDB(APP)
 AUTH_HANDLER = AuthHandler(RTDB)
 
 
-# helpers
-
-def __missing_required(d, required):
-    if not d:
-        return required
-    return [k for k in required if k not in d]
-
-
 # actual request handlers
 
 def handle_auth(request):
     required = ['username', 'password']
     data = request.get_json(force=True, silent=True)
-    if (missing := __missing_required(data, required)):
+    if (missing := missing_required(data, required)):
         return Response(f'Missing expected data: {missing}', 400)
 
     if not AUTH_HANDLER.sign_in_with_email_and_password(data['username'], data['password']):
         return Response('Bad Credentials', 401)
+    if not AUTH_HANDLER.user_has_app_access(data['username']):
+        return Response('Invalid user for application', 401)
     session = AUTH_HANDLER.create_session(data['username'])
     return Response(
         json.dumps(session),

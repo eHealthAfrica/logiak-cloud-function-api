@@ -24,6 +24,7 @@ import json
 import os
 import pytest
 from time import sleep
+from unittest.mock import patch
 from werkzeug.datastructures import Headers, MultiDict
 
 
@@ -39,7 +40,8 @@ from google.cloud.firestore_v1.client import Client as CFS_Client
 from test.app.cloud import fb_utils
 from test.app.mock import endpoints
 
-from test.app.cloud.utils import escape_version, escape_email
+from test.app.cloud.auth import AuthHandler
+from test.app.cloud.utils import escape_version
 
 
 LOG = logging.getLogger('TEST')
@@ -176,6 +178,8 @@ def sample_project(rtdb, cfs, check_local_firebase_readyness):
     APP_LANG = META['variants']
 
     rtdb.reference(f'/{APP_ID}/settings').set(META)
+    inits = get_json(f'{PATH}/meta/inits.json')
+    rtdb.reference(f'/{APP_ID}/inits').set(inits)
 
     rtdb.reference(
         f'apps/{APP_ALIAS}/{escape_version(APP_VERSION)}/{APP_LANG}/json') \
@@ -196,13 +200,13 @@ def sample_project(rtdb, cfs, check_local_firebase_readyness):
         fb_utils.cfs_write(cfs, _all, _path)
 
 
-# @pytest.mark.integration
-# @pytest.fixture(scope='session')
-# def MockAuthHandler(rtdb):
+@pytest.mark.integration
+@pytest.fixture(scope='session')
+def MockAuthHandler(rtdb):
 
-#     def _true(*args, **kwargs):
-#         return True
+    def _true(*args, **kwargs):
+        return True
 
-#     handler = auth.AuthHandler(rtdb)
-#     with mock.object(handler, 'sign_in_with_email_and_password', _true):
-#         handler.
+    with patch.object(AuthHandler, 'sign_in_with_email_and_password', _true):
+        handler = AuthHandler(rtdb)
+        yield handler

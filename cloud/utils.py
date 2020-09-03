@@ -27,3 +27,9 @@ def escape_email(s):
 
 def escape_version(s):
     return s.replace('.', '-')
+
+
+def missing_required(d, required):
+    if not d:
+        return required
+    return [k for k in required if k not in d]

@@ -16,17 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import logging
 import types
 
 from firebase_admin.db import reference as rtdb_reference
 from firebase_admin.firestore import client as cfs_client
 from google.cloud import firestore
 from google.cloud.firestore_v1.collection import CollectionReference
-
-
-LOG = logging.getLogger('FB')
-LOG.setLevel(logging.DEBUG)
 
 
 # RTDB io
@@ -123,7 +118,7 @@ def __write_parents(db: Firestore, terminus_path):
         path = terminus_path
         while path := '/'.join(path.split('/')[:-2]):
             db.write(full_path=path, value={})
-    except Exception as err:
+    except Exception:
         pass
 
 

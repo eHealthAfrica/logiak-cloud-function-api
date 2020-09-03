@@ -28,10 +28,10 @@ from flask import Response
 import requests
 
 from .fb_utils import RTDB
-from .utils import escape_email
+from .utils import escape_email, missing_required
 
 
-LOG = logging.getLogger('TEST')
+LOG = logging.getLogger('AUTH')
 LOG.setLevel(logging.DEBUG)
 
 
@@ -41,7 +41,7 @@ def requires_auth(auth: 'AuthHandler'):
         def wrapper(request, *args, **kwargs):
             headers = dict(request.headers)
             reqs = ['Logiak-User-Id', 'Logiak-Session-Key']
-            if (missing := __missing_required(headers, reqs)):  # noqa
+            if (missing := missing_required(headers, reqs)):  # noqa
                 return Response(f'Missing required headers: {missing}', 400)
             if not auth.verify_session(headers[reqs[0]], headers[reqs[1]]):
                 return Response('Bad Session', 401)
@@ -50,7 +50,7 @@ def requires_auth(auth: 'AuthHandler'):
     return handler
 
 
-def AuthHandler(object):
+class AuthHandler(object):
 
     ID_URL = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword'
     # https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyPassword
@@ -63,7 +63,7 @@ def AuthHandler(object):
         self.session_path = f'/webapp/{self.app_id}/session'
 
     def sign_in_with_email_and_password(self, email: str, password: str) -> bool:
-        url = f'{ID_URL}?key={self.api_key}'
+        url = f'{self.ID_URL}?key={self.api_key}'
         headers = {'content-type': 'application/json; charset=UTF-8'}
         data = json.dumps({'email': email, 'password': password, 'returnSecureToken': False})
         res = requests.post(url, headers=headers, data=data)
@@ -75,22 +75,23 @@ def AuthHandler(object):
         return True
 
     def create_session(self, user_id: str) -> Dict:
-        self.__remove_expired_sessions(user_id)
-        user_token_path = f'{self.session_path}/{user_id}'
-        session = self.__generate_session(user_id)
+        key = escape_email(user_id)
+        self._remove_expired_sessions(key)
+        user_token_path = f'{self.session_path}/{key}'
+        session = self._generate_session()
         ref = self.rtdb.reference(f'{user_token_path}/{session["session_key"]}')
-        ref.write(session)
+        ref.set(session)
         return {user_id: session}
 
-    def __user_has_app_access(self, email: str) -> bool:
+    def user_has_app_access(self, email: str) -> bool:
         key = escape_email(email)
-        ref = self.rtdb.reference(f'{self.app_id}/inits/{key}')
-        # if exists?
-        if ref.get() != 'null':
+        uri = f'{self.app_id}/inits/{key}/version'
+        ref = self.rtdb.reference(uri)
+        if ref.get():
             return True
         return False
 
-    def __session_is_valid(self, session) -> bool:
+    def _session_is_valid(self, session) -> bool:
         try:
             now = epoch_now()
             expiry = session['session_length'] + session['start_time']
@@ -99,14 +100,17 @@ def AuthHandler(object):
             LOG.debug(f'session validation error: {err}')
             return False
 
-    def __remove_expired_sessions(self, user_id):
-        all_session_path = f'{self.session_path}/{user_id}'
+    def _remove_expired_sessions(self, user_id):
+        key = escape_email(user_id)
+        all_session_path = f'{self.session_path}/{key}'
         sessions = self.rtdb.reference(all_session_path).get()
+        if not sessions:
+            return
         for _id, session in sessions.items():
-            if not self.__session_is_valid(session):
-                self.rtdb.reference(f'{all_session_path}/{_id}').remove()
+            if not self._session_is_valid(session):
+                self.rtdb.reference(f'{all_session_path}/{_id}').delete()
 
-    def __generate_session(self) -> Dict:
+    def _generate_session(self) -> Dict:
         return {
             'session_key': str(uuid4()),
             'start_time': epoch_now(),
@@ -114,9 +118,10 @@ def AuthHandler(object):
         }
 
     def verify_session(self, user_id: str, token: str) -> bool:
-        user_token_path = f'{self.session_path}/{user_id}/{token}'
+        key = escape_email(user_id)
+        user_token_path = f'{self.session_path}/{key}/{token}'
         try:
-            return self.__session_is_valid(
+            return self._session_is_valid(
                 self.rtdb.reference(user_token_path).get()
             )
         except Exception as err:

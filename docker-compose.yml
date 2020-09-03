@@ -8,6 +8,7 @@ services:
       TEST: 'true'
       FIRESTORE_EMULATOR_HOST: emulator:8080
       FIREBASE_DATABASE_EMULATOR_HOST: emulator:9000
+      LOGIAK_APP_ID: a988b4a4-1cae-4202-a988-c35637d55760 # the demo app (LoMIS) in emulator
     entrypoint:
       "/test/entrypoint.sh"
 
@@ -22,8 +23,6 @@ services:
     environment:
       FIREBASE_TOKEN: ${FIREBASE_TOKEN-}
       FIREBASE_PROJECT: ${FIREBASE_PROJECT-}
-      # the demo app (LoMIS)
-      LOGIAK_APP_ID: a988b4a4-1cae-4202-a988-c35637d55760
     ports:
       - 5001:5001
       - 9000:9000
