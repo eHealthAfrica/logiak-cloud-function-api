@@ -17,3 +17,4 @@ RUN pip install -q --upgrade pip && \
 COPY ./test/* /test/
 COPY ./*.py /test/app/
 COPY ./mock /test/app/mock
+COPY ./cloud /test/app/cloud

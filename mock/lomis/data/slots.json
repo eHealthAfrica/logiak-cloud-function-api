@@ -1,3 +1,120 @@
 {
-  "aboubacar-dot-douno-at-ehealthnigeria-dot-org": []
+  "slots": {
+    "aboubacar-dot-douno-at-ehealthnigeria-dot-org": {
+      "data": {
+        "allocation": {
+          "686f36a0-a7fc-4f7b-b977-ec9fb8a719d6": {
+            "modified": "1598009147353",
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org"
+          },
+          "d8da45e3-7f15-4cc6-b8cd-4927a1debbcc": {
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org",
+            "modified": "1598537846650"
+          },
+          "dd04a478-67f0-4396-95c6-666f69e1671d": {
+            "modified": "1598016311147",
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org"
+          },
+          "f1dc6201-b5aa-4bdc-ba9d-d10dd7389e5b": {
+            "modified": "1598537409451",
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org"
+          }
+        },
+        "batch": {
+          "00f20745-a77f-4095-b45b-c4572a5d19e4": {
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org",
+            "modified": "1598011077936"
+          },
+          "85f4ba1b-cb4c-4fd2-a34f-e7961ff85d70": {
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org",
+            "modified": "1598537846672"
+          },
+          "997712f5-a26e-4156-b35c-058d05b3aca9": {
+            "modified": "1598537569439",
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org"
+          },
+          "a2188e02-eab6-4b61-978f-c915f97d4996": {
+            "modified": "1598009147375",
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org"
+          },
+          "e3ac20c1-f5df-43e3-9d05-0f6da74689c5": {
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org",
+            "modified": "1598016311170"
+          }
+        },
+        "inbound": {
+          "1210ff74-af6d-403d-b2b5-de8934408a06": {
+            "modified": "1598008764433",
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org"
+          },
+          "453370c6-a6d8-4b62-96e2-f3cccdb52aa7": {
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org",
+            "modified": "1598537569312"
+          },
+          "61c03f21-1f77-4636-8509-3c1eb04515b3": {
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org",
+            "modified": "1598016177172"
+          },
+          "aa8fd981-ad12-4730-b382-6847a492cd53": {
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org",
+            "modified": "1598008727286"
+          },
+          "d28fdd6e-77dd-4866-b127-2355eaadd239": {
+            "modified": "1598010282439",
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org"
+          },
+          "e9be9826-1e02-4e09-9305-905428f72a4f": {
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org",
+            "modified": "1598011143690"
+          },
+          "f35cdfac-ce7e-4da8-8a64-ce64baf5ec7b": {
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org",
+            "modified": "1598010483170"
+          }
+        },
+        "outbound": {
+          "119c49b2-7141-45a7-ae4e-f6bbf4ea64fc": {
+            "modified": "1598016311058",
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org"
+          },
+          "41878faf-33fe-4206-a8ea-41106da890a5": {
+            "modified": "1598010430659",
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org"
+          },
+          "f097c725-af8e-4849-b582-0a56f50fccda": {
+            "modified": "1598008856481",
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org"
+          }
+        },
+        "utilisation": {
+          "0d2ba933-cafe-4a72-81e1-5c9c97ca9495": {
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org",
+            "modified": "1598010921794"
+          },
+          "143c0188-6722-492a-bcd4-ae708f594bdd": {
+            "modified": "1598010807653",
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org"
+          },
+          "48d8e4db-5ba6-4d17-96c0-69a6ead0102d": {
+            "modified": "1598537764909",
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org"
+          },
+          "ea4bc07d-889d-4cc1-bec4-0b6856967273": {
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org",
+            "modified": "1598009147249"
+          }
+        },
+        "wastage": {
+          "56a6ad2c-4359-4c2a-a580-db2805345877": {
+            "modified": "1598011077838",
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org"
+          },
+          "bc480a2b-04b9-40a2-be96-953d477bd36a": {
+            "modified": "1598537790306",
+            "modifiedBy": "aboubacar-dot-douno-at-ehealthnigeria-dot-org"
+          }
+        }
+      }
+    }
+  }
 }

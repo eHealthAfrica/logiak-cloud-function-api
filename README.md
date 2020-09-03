@@ -60,7 +60,7 @@ References RTDB: {app_id}/settings
 
 The Application definition of a version/language combination of the App.  Contains Tables / Etc. _Should be cached on the client side!_
 
-References RTDB: apps/{app_alias}/settings/{app_version}/{language}/json
+References RTDB: apps/{app_alias}/{app_version}/settings/{language}/json
 
 #### `/meta/schema/{app_version}` [GET]
 

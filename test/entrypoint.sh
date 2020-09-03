@@ -27,7 +27,7 @@ test_flake8() {
 }
 
 test() {
-    $PYTEST
+    $PYTEST -m $1
     rm -R .pytest_cache || true
     rm -rf tests/__pycache__ || true
 }
