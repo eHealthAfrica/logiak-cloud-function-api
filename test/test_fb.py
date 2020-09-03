@@ -18,9 +18,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from flask import Response
 import json
 import pytest
 
+
+from test.app.cloud.auth import requires_auth
 from test.app.cloud.utils import escape_email
 
 from . import (  # noqa
@@ -30,8 +33,10 @@ from . import (  # noqa
     rtdb,
     fb_app,
     MockAuthHandler,
+    MockPostRequest,
     rtdb_options,
-    sample_project
+    sample_project,
+    TestSession
 )
 
 
@@ -78,3 +83,36 @@ def test__session(MockAuthHandler, rtdb):  # noqa
     assert(MockAuthHandler.verify_session(TEST_USER, session_key) is False)
     MockAuthHandler._remove_expired_sessions(TEST_USER)
     assert(rtdb.reference(session_obj_ref).get() is None)
+
+
+@pytest.mark.integration
+def test__bad_session(MockAuthHandler, rtdb):  # noqa
+    assert(MockAuthHandler.verify_session('bad-user', 'bad-token') is False)
+    MockAuthHandler._remove_expired_sessions('bad-user')
+    assert(MockAuthHandler._session_is_valid({'a': 'bad_session'}) is False)
+
+
+@pytest.mark.integration
+def test__requires_auth(MockAuthHandler, TestSession):  # noqa
+
+    @requires_auth(MockAuthHandler)
+    def _fn(*args, **kwargs):
+        return True
+
+    session = TestSession(TEST_USER)
+    session_key = session[TEST_USER]['session_key']
+    good_headers = {'Logiak-User-Id': TEST_USER, 'Logiak-Session-Key': session_key}
+    request = MockPostRequest(headers=good_headers)
+    assert(_fn(request) is True)
+
+    bad_headers = {'Logiak-User-Id': TEST_USER, 'Logiak-Session-Key': 'bad-key'}
+    request = MockPostRequest(headers=bad_headers)
+    res = _fn(request)
+    assert(isinstance(res, Response))
+    assert(res.status_code == 401)
+
+    bad_headers = {'Missing ID': TEST_USER, 'Logiak-Session-Key': 'bad-key'}
+    request = MockPostRequest(headers=bad_headers)
+    res = _fn(request)
+    assert(isinstance(res, Response))
+    assert(res.status_code == 400)

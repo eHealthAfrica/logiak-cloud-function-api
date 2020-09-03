@@ -41,7 +41,7 @@ from test.app.cloud import fb_utils
 from test.app.mock import endpoints
 
 from test.app.cloud.auth import AuthHandler
-from test.app.cloud.utils import escape_version
+from test.app.cloud.utils import escape_email, escape_version
 
 
 LOG = logging.getLogger('TEST')
@@ -210,3 +210,26 @@ def MockAuthHandler(rtdb):
     with patch.object(AuthHandler, 'sign_in_with_email_and_password', _true):
         handler = AuthHandler(rtdb)
         yield handler
+
+
+@pytest.mark.integration
+@pytest.fixture(scope='session')
+def TestSession(MockAuthHandler, rtdb):
+
+    _user = None
+    session_key = None
+
+    def _fn(user):
+        nonlocal _user
+        nonlocal session_key
+
+        _user = user
+        session = MockAuthHandler.create_session(user)
+        session_key = session[user]['session_key']
+        return session
+
+    yield _fn
+
+    key = escape_email(_user)
+    session_obj_ref = f'{MockAuthHandler.session_path}/{key}/{session_key}'
+    rtdb.reference(session_obj_ref).delete()

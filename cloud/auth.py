@@ -120,10 +120,7 @@ class AuthHandler(object):
     def verify_session(self, user_id: str, token: str) -> bool:
         key = escape_email(user_id)
         user_token_path = f'{self.session_path}/{key}/{token}'
-        try:
-            return self._session_is_valid(
-                self.rtdb.reference(user_token_path).get()
-            )
-        except Exception as err:
-            LOG.debug(f'verify error: {err}')
-            return False
+        session = self.rtdb.reference(user_token_path).get()
+        if session:
+            return self._session_is_valid(session)
+        return False
