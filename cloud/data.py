@@ -18,26 +18,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# import json
 
-try:
-    from .cloud import endpoints
-except (ImportError, ModuleNotFoundError):
-    from test.app.cloud import endpoints
-
-
-# Cloud Function Entrypoint
-
-def _all(request):
-    return endpoints.handle_all(request)
-
-
-def _auth(request):
-    return endpoints.handle_auth(request)
-
-
-def _meta(request):
-    return endpoints.handle_meta(request)
-
-
-def _data(request):
-    return endpoints.handle_data(request)
+# from flask import jsonify, make_response, Response
+# from spavro.schema import parse

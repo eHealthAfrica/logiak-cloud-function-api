@@ -35,7 +35,7 @@ LOG = logging.getLogger('AUTH')
 LOG.setLevel(logging.DEBUG)
 
 
-def requires_auth(auth: 'AuthHandler'):
+def require_auth(auth: 'AuthHandler'):
     def handler(fn):
         @wraps(fn)
         def wrapper(request, *args, **kwargs):
@@ -129,7 +129,7 @@ class AuthHandler(object):
 def auth_request(data, auth_handler):
     required = ['username', 'password']
     if (missing := missing_required(data, required)):
-        return auth_handler(f'Missing expected data: {missing}', 400)
+        return Response(f'Missing expected data: {missing}', 400)
 
     if not auth_handler.sign_in_with_email_and_password(data['username'], data['password']):
         return Response('Bad Credentials', 401)

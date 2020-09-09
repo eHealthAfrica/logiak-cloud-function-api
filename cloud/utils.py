@@ -39,7 +39,7 @@ def missing_required(d, required):
 
 def path_stripper(to_exclude: List):
 
-    def _fn(path_parts: List):
+    def _fn(path_parts: List) -> List:
         for rm in to_exclude:
             try:
                 idx = path_parts.index(rm)

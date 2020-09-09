@@ -26,7 +26,7 @@ import pytest
 
 from test.app.cloud import meta
 
-from test.app.cloud.auth import requires_auth
+from test.app.cloud.auth import require_auth
 from test.app.cloud.utils import escape_email
 
 from . import (  # noqa
@@ -46,6 +46,7 @@ from . import (  # noqa
 TEST_USER = 'aboubacar.douno@ehealthnigeria.org'
 TEST_APP_VERSION = '0.0.42'
 TEST_APP_LANG = 'en'
+TEST_OBJECT_TYPE = 'batch'
 
 
 @pytest.mark.integration
@@ -100,9 +101,9 @@ def test__bad_session(MockAuthHandler, rtdb):  # noqa
 
 
 @pytest.mark.integration
-def test__requires_auth(MockAuthHandler, TestSession):  # noqa
+def test__require_auth(MockAuthHandler, TestSession):  # noqa
 
-    @requires_auth(MockAuthHandler)
+    @require_auth(MockAuthHandler)
     def _fn(*args, **kwargs):
         return True
 
@@ -127,6 +128,38 @@ def test__requires_auth(MockAuthHandler, TestSession):  # noqa
 
 # META
 
+@pytest.mark.parametrize('path,status_code', [
+    (
+        'meta/app',
+        200),
+    (
+        f'meta/app/{TEST_APP_VERSION}/{TEST_APP_LANG}',
+        200),
+    (
+        f'meta/schema/{TEST_APP_VERSION}',
+        200),
+    (
+        f'meta/schema/{TEST_APP_VERSION}/{TEST_OBJECT_TYPE}',
+        200),
+    (
+        'meta/missing',
+        404),
+    (
+        f'meta/app/0.22511/{TEST_APP_LANG}',
+        404),
+    (
+        'meta/schema/0.22511',
+        404),
+    (
+        f'meta/schema/{TEST_APP_VERSION}/missing',
+        404)
+])
+@pytest.mark.integration
+def test__meta_resolution(rtdb, path, status_code):  # noqa
+    res = meta.resolve(path.split('/'), rtdb)
+    assert(res.status_code == status_code)
+
+
 @pytest.mark.integration
 def test__meta_info(rtdb):  # noqa
     res = meta._meta_info(rtdb)
@@ -137,7 +170,22 @@ def test__meta_info(rtdb):  # noqa
 @pytest.mark.integration
 def test__meta_app(rtdb):  # noqa
     res = meta._meta_app(rtdb, TEST_APP_VERSION, TEST_APP_LANG)
-    # LOG.debug(res)
     assert(res is not None)
     assert(isinstance(res, dict))
-    # assert('projectUuid' in res.keys()), json.dumps(res, indent=2)
+    assert('projectUuid' in res.keys()), json.dumps(res, indent=2)
+
+
+@pytest.mark.integration
+def test__meta_list_schemas(rtdb):  # noqa
+    res = meta._meta_list_schemas(rtdb, TEST_APP_VERSION)
+    assert(res is not None)
+    assert(isinstance(res, list))
+    assert(TEST_OBJECT_TYPE in res)
+
+
+@pytest.mark.integration
+def test__meta_get_schema(rtdb):  # noqa
+    res = meta._meta_schema(rtdb, TEST_APP_VERSION, TEST_OBJECT_TYPE)
+    assert(res is not None)
+    assert(isinstance(res, dict))
+    assert('name' in res.keys())

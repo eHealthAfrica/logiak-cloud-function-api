@@ -39,7 +39,7 @@ ROOT_PATH = os.environ.get('ROOT_PATH')
 
 _STRIP = path_stripper([ROOT_PATH, 'meta']) \
     if ROOT_PATH \
-    else path_stripper(['meta'])
+    else path_stripper(['meta', ''])
 
 
 def as_json_response(obj) -> Response:
@@ -48,7 +48,7 @@ def as_json_response(obj) -> Response:
     return Response('Not Found', 404)
 
 
-def resolve(path, rtdb) -> Response:
+def resolve(path, rtdb: fb_utils.RTDB) -> Response:
     path = _STRIP(path)
     if path[0] == 'schema':
         if len(path) == 2:
@@ -78,21 +78,26 @@ def _meta_app(rtdb: fb_utils.RTDB, app_version: str, app_language: str) -> dict:
         APP_ALIAS = _meta_info(rtdb)['defaultAppUuid']
     _version = escape_version(app_version)
     uri = f'apps/{APP_ALIAS}/{_version}/{app_language}/json'
-    LOG.debug(uri)
-    return json.loads(rtdb.reference(uri).get())
+    res = rtdb.reference(uri).get()
+    if res:
+        return json.loads(res)
 
 
 # /meta/schema/{app_version} [GET]
-# -> objects/{app_id}/settings/{app_version(escaped)}
+# -> objects/{app_id}/{app_version(escaped)}
 def _meta_list_schemas(rtdb: fb_utils.RTDB, app_version: str) -> List:
     _version = escape_version(app_version)
-    uri = f'objects/{APP_ID}/settings/{_version}'
-    return rtdb.reference(uri).get()
+    uri = f'objects/{APP_ID}/{_version}'
+    res = rtdb.reference(uri).get(shallow=True)
+    if res:
+        return sorted(res.keys())
 
 
 # /meta/schema/{app_version}/{schema_name}` [GET]
-# -> objects/{app_id}/settings/{app_version(escaped)}/{schema_name}
+# -> objects/{app_id}/{app_version(escaped)}/{schema_name}
 def _meta_schema(rtdb: fb_utils.RTDB, app_version: str, schema_name: str) -> dict:
     _version = escape_version(app_version)
-    uri = f'objects/{APP_ID}/settings/{_version}/{schema_name}'
-    return json.loads(rtdb.reference(uri).get())
+    uri = f'objects/{APP_ID}/{_version}/{schema_name}'
+    res = rtdb.reference(uri).get()
+    if res:
+        return json.loads(res)
