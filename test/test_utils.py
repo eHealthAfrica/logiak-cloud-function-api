@@ -5,7 +5,7 @@
 # See the NOTICE file distributed with this work for additional information
 # regarding copyright ownership.
 #
-# Licensed under the Apache License, Version 2.0 (the 'License');
+# Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with
 # the License.  You may obtain a copy of the License at
 #
@@ -18,34 +18,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import List
+
+import pytest
+
+from test.app.cloud import utils
 
 
-def escape_email(s):
-    s = s.replace('.', '-dot-')
-    s = s.replace('@', '-at-')
-    return s
+@pytest.mark.unit
+def test__clean_list():
+    to_remove = ['a', 'b', 'c']
 
+    _fn = utils.path_stripper(to_remove)
 
-def escape_version(s):
-    return s.replace('.', '-')
-
-
-def missing_required(d, required):
-    if not d:
-        return required
-    return [k for k in required if k not in d]
-
-
-def path_stripper(to_exclude: List):
-
-    def _fn(path_parts: List):
-        for rm in to_exclude:
-            try:
-                idx = path_parts.index(rm)
-                path_parts.pop(idx)
-            except ValueError:
-                pass
-        return path_parts
-
-    return _fn
+    for path in (
+        ['a', 'b', 'c', 'd'],
+        ['a', 'b', 'd'],
+        ['d', 'e']
+    ):
+        res = _fn(path)
+        assert(not any([i in res for i in to_remove]))
+        assert(len(res) > 0)

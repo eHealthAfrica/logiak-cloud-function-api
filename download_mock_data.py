@@ -8,9 +8,12 @@ from firebase_admin import credentials, firestore  # noqa
 from cloud import fb_utils, utils
 
 
-def write_meta(rtdb, src, dst):
+def write_meta(rtdb, src, dst, parse_source_json=False):
     with open(dst, 'w') as f:
-        _content = rtdb.reference(src).get()
+        if parse_source_json:
+            _content = json.loads(rtdb.reference(src).get())
+        else:
+            _content = rtdb.reference(src).get()
         json.dump(_content, f, indent=2, default=str)
     return _content
 
@@ -70,4 +73,5 @@ write_meta(
 write_meta(
     rtdb,
     f'apps/{APP_ALIAS}/{AV_ESCAPE}/{APP_LANG}/json',
-    f'{WRITE_FOLDER}/meta/app.json')
+    f'{WRITE_FOLDER}/meta/app.json',
+    True)

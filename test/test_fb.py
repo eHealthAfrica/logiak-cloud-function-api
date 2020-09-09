@@ -20,8 +20,11 @@
 
 from flask import Response
 import json
+import os
 import pytest
 
+
+from test.app.cloud import meta
 
 from test.app.cloud.auth import requires_auth
 from test.app.cloud.utils import escape_email
@@ -41,6 +44,8 @@ from . import (  # noqa
 
 
 TEST_USER = 'aboubacar.douno@ehealthnigeria.org'
+TEST_APP_VERSION = '0.0.42'
+TEST_APP_LANG = 'en'
 
 
 @pytest.mark.integration
@@ -52,6 +57,8 @@ def test__setup_emulator(sample_project):  # noqa  # import static -> emulator
 def test__auth_has_app(MockAuthHandler):  # noqa
     assert(MockAuthHandler.sign_in_with_email_and_password('a', 'b') is True)
 
+
+# AUTH
 
 @pytest.mark.parametrize('email,res', [
     (
@@ -116,3 +123,21 @@ def test__requires_auth(MockAuthHandler, TestSession):  # noqa
     res = _fn(request)
     assert(isinstance(res, Response))
     assert(res.status_code == 400)
+
+
+# META
+
+@pytest.mark.integration
+def test__meta_info(rtdb):  # noqa
+    res = meta._meta_info(rtdb)
+    assert(res is not None)
+    assert(res['uuid'] == os.environ.get('LOGIAK_APP_ID'))
+
+
+@pytest.mark.integration
+def test__meta_app(rtdb):  # noqa
+    res = meta._meta_app(rtdb, TEST_APP_VERSION, TEST_APP_LANG)
+    # LOG.debug(res)
+    assert(res is not None)
+    assert(isinstance(res, dict))
+    # assert('projectUuid' in res.keys()), json.dumps(res, indent=2)

@@ -20,14 +20,16 @@
 
 import os
 import json
-import time
 
 from flask import jsonify, make_response, Response
 from spavro.schema import parse
 
-from . import fb_utils
-from .utils import missing_required
-from .auth import AuthHandler, require_auth
+from . import fb_utils, meta, utils
+from .auth import AuthHandler, auth_request, require_auth
+
+ROOT_PATH = os.environ.get('ROOT_PATH')
+_STRIP = utils.path_stripper([ROOT_PATH])
+
 
 SCHEMAS = {}
 
@@ -39,21 +41,22 @@ AUTH_HANDLER = AuthHandler(RTDB)
 
 # actual request handlers
 
-def handle_auth(request):
-    required = ['username', 'password']
-    data = request.get_json(force=True, silent=True)
-    if (missing := missing_required(data, required)):
-        return Response(f'Missing expected data: {missing}', 400)
 
-    if not AUTH_HANDLER.sign_in_with_email_and_password(data['username'], data['password']):
-        return Response('Bad Credentials', 401)
-    if not AUTH_HANDLER.user_has_app_access(data['username']):
-        return Response('Invalid user for application', 401)
-    session = AUTH_HANDLER.create_session(data['username'])
-    return Response(
-        json.dumps(session),
-        200,
-        mimetype='application/json')
+# route all from base path (usually APP_ID, name or alias)
+def route_all(request):
+    root = _STRIP(request.path.split('/'))[0]
+    if root == 'auth':
+        return handle_auth(request)
+    elif root == 'meta':
+        return handle_meta(request)
+    # elif root == 'data':
+    #     return handle_data(request)
+    return Response('Not Found', 404)
+
+
+def handle_auth(request):
+    data = request.get_json(force=True, silent=True)
+    return auth_request(data, AUTH_HANDLER)
 
 
 @require_auth(AUTH_HANDLER)
@@ -61,49 +64,10 @@ def handle_no_op(request):
     return Response('', 200)
 
 
-# def __meta_info():
-#     return Response(json.dumps(APP_INFO), 200, mimetype='application/json')
-
-
-# def __meta_list_schemas():
-#     return Response(
-#         json.dumps([k for k in SCHEMA_OBJ]),
-#         200,
-#         mimetype='application/json'
-#     )
-
-
-# def __meta_schema(name):
-#     try:
-#         return Response(
-#             json.dumps(json.loads(SCHEMA_OBJ[name])), 200, mimetype='application/json')
-#     except KeyError:
-#         return Response(f'schema : {name} not found', 404)
-
-
-# def __meta_app():
-#     return Response(json.dumps(APP), 200, mimetype='application/json')
-
-
-# @require_auth(AUTH_HANDLER)
-# def handle_meta(request):
-#     path = request.path.split('/')
-#     try:
-#         local_path = (path.index('meta') + 1)
-#     except ValueError:
-#         local_path = 1
-#     path = path[local_path:]
-#     if path[0] == 'schema':
-#         if len(path) == 2:
-#             return __meta_list_schemas()
-#         if len(path) == 3:
-#             return __meta_schema(path[2])
-#     elif path[0] == 'app':
-#         if len(path) < 2:
-#             return __meta_info()
-#         else:
-#             return __meta_app()
-#     return Response(f'Not Found @ {path}', 404)
+@require_auth(AUTH_HANDLER)
+def handle_meta(request):
+    path = request.path.split('/')
+    return meta.resolve(path, RTDB)
 
 
 # def __data_all(name):

@@ -3,7 +3,7 @@
   "auth": "EMAIL_PASSWORD",
   "defaultAppUuid": "dd025426-5376-444e-9135-92b0e4c943a0",
   "defaultLanguage": "en",
-  "defaultVersion": "0.0.37",
+  "defaultVersion": "0.0.42",
   "devMode": false,
   "deviceSharing": false,
   "offlineLogin": false,

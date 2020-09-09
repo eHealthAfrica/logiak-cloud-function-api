@@ -124,3 +124,19 @@ class AuthHandler(object):
         if session:
             return self._session_is_valid(session)
         return False
+
+
+def auth_request(data, auth_handler):
+    required = ['username', 'password']
+    if (missing := missing_required(data, required)):
+        return auth_handler(f'Missing expected data: {missing}', 400)
+
+    if not auth_handler.sign_in_with_email_and_password(data['username'], data['password']):
+        return Response('Bad Credentials', 401)
+    if not auth_handler.user_has_app_access(data['username']):
+        return Response('Invalid user for application', 401)
+    session = auth_handler.create_session(data['username'])
+    return Response(
+        json.dumps(session),
+        200,
+        mimetype='application/json')
