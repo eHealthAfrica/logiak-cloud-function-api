@@ -20,7 +20,7 @@
 
 
 try:
-    from .cloud import endpoints
+    from cloud import endpoints
 except (ImportError, ModuleNotFoundError):
     from test.app.cloud import endpoints
 
