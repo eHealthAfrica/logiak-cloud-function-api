@@ -24,10 +24,10 @@ set -Eeuo pipefail
 MODE="$1"
 
 # On Exit
-# trap 'docker-compose down' EXIT
+trap 'docker-compose down' EXIT
 docker-compose build >> /dev/null
 
-if [[ $MODE == "integration" || $MODE == "integration" ]]; then
+if [[ $MODE == "integration" || $MODE == "all" ]]; then
     docker-compose up -d emulator
 fi
 

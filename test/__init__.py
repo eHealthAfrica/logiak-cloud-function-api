@@ -128,8 +128,8 @@ def get_local_session(self):
 
 # raises UnavailableError
 def check_app_alive(rtdb, cfs):
-    ref = rtdb.reference('some/path')
-    cref = cfs.ref(full_path=u'test2/adoc')
+    ref = rtdb.reference('some/path').get()
+    cref = cfs.ref(full_path=u'test2/adoc').get()
     # cref = cfs.collection(u'test2').document(u'adoc')
     return (ref and cref)
 
@@ -137,16 +137,17 @@ def check_app_alive(rtdb, cfs):
 @pytest.fixture(scope='session', autouse=True)
 def check_local_firebase_readyness(request, rtdb, cfs, *args):
     # @mark annotation does not work with autouse=True
-    if 'integration' not in request.config.invocation_params.args:
+    if 'unit' in request.config.invocation_params.args:
         LOG.debug('NOT Checking for LocalFirebase')
         return
     LOG.debug('Waiting for Firebase')
     for x in range(30):
         try:
-            check_app_alive(rtdb, cfs)
+            LOG.debug(check_app_alive(rtdb, cfs))
             LOG.debug(f'Firebase ready after {x} seconds')
             return
-        except (UnavailableError, UnknownError):
+        except (UnavailableError, UnknownError, ConnectionError):
+            LOG.debug(f'waiting for... {x} seconds for Firebase')
             sleep(1)
 
     raise TimeoutError('Could not connect to Firebase for integration test')
