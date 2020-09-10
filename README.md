@@ -8,6 +8,11 @@
   - Abstract the internal database structure of Logiak
   - Perform cost-effective queries
 
+## Deployment Requirements:
+
+ - FIREBASE_URL
+ - WEB_API_KEY
+ - LOGIAK_APP_ID
 
 
 ## Services
