@@ -18,26 +18,41 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
-try:
-    from cloud import endpoints
-except (ImportError, ModuleNotFoundError):
-    from test.app.cloud import endpoints
+from typing import List
 
 
-# Cloud Function Entrypoint
-
-def _all(request):
-    return endpoints.handle_all(request)
-
-
-def _auth(request):
-    return endpoints.handle_auth(request)
+def escape_email(s):
+    s = s.replace('.', '-dot-')
+    s = s.replace('@', '-at-')
+    return s
 
 
-def _meta(request):
-    return endpoints.handle_meta(request)
+def escape_version(s):
+    return s.replace('.', '-')
 
 
-def _data(request):
-    return endpoints.handle_data(request)
+def missing_required(d, required):
+    if not d:
+        return required
+    return [k for k in required if k not in d]
+
+
+def path_stripper(to_exclude: List):
+
+    def _fn(path_parts: List) -> List:
+        for rm in to_exclude:
+            try:
+                idx = path_parts.index(rm)
+                path_parts.pop(idx)
+            except ValueError:
+                pass
+        return path_parts
+
+    return _fn
+
+
+def chunk(obj, size):
+    n = max(1, size)
+    return (
+        obj[i:i + size] for i in range(0, len(obj), n)
+    )

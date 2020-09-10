@@ -27,9 +27,14 @@ test_flake8() {
 }
 
 test() {
-    $PYTEST
+    $PYTEST -m $1
     rm -R .pytest_cache || true
     rm -rf tests/__pycache__ || true
+}
+
+run_local() {
+    export FLASK_APP=app.local_server
+    flask run --host=0.0.0.0 --port=9009
 }
 
 case "$1" in
@@ -52,7 +57,8 @@ case "$1" in
     ;;
 
     start )
-        python manage.py "${@:2}"
+        test_flake8
+        run_local
     ;;
 
     test)

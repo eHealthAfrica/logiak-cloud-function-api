@@ -1,11 +1,11 @@
-#!/usr/bin/env python
-
-# Copyright (C) 2020 by eHealth Africa : http://www.eHealthAfrica.org
+#!/usr/bin/env bash
+#
+# Copyright (C) 2018 by eHealth Africa : http://www.eHealthAfrica.org
 #
 # See the NOTICE file distributed with this work for additional information
 # regarding copyright ownership.
 #
-# Licensed under the Apache License, Version 2.0 (the 'License');
+# Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with
 # the License.  You may obtain a copy of the License at
 #
@@ -17,27 +17,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 
+set -Eeuo pipefail
 
-try:
-    from cloud import endpoints
-except (ImportError, ModuleNotFoundError):
-    from test.app.cloud import endpoints
+MODE="$1"
 
+# On Exit
+# trap 'docker-compose down' EXIT
+docker-compose build >> /dev/null
 
-# Cloud Function Entrypoint
+if [[ $MODE == "integration" ]]; then
+    docker-compose up -d emulator
+fi
 
-def _all(request):
-    return endpoints.handle_all(request)
-
-
-def _auth(request):
-    return endpoints.handle_auth(request)
-
-
-def _meta(request):
-    return endpoints.handle_meta(request)
-
-
-def _data(request):
-    return endpoints.handle_data(request)
+docker-compose run --rm test-library test "$MODE"

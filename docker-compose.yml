@@ -1,4 +1,4 @@
-version: "2.1"
+version: "3.2"
 
 services:
 
@@ -6,5 +6,42 @@ services:
     build: .
     environment:
       TEST: 'true'
+      FIRESTORE_EMULATOR_HOST: emulator:8080
+      FIREBASE_DATABASE_EMULATOR_HOST: emulator:9000
+      LOGIAK_APP_ID: a988b4a4-1cae-4202-a988-c35637d55760 # the demo app (LoMIS) in emulator
+      WEB_API_KEY: ${WEB_API_KEY-}
+    ports:
+      - 9009:9009
     entrypoint:
       "/test/entrypoint.sh"
+    command:
+      "start"
+
+  emulator:
+    image: ehealthafrica/firebase-emulator:local
+    volumes:
+      # - ./hosted.json:/app/override.json:rw
+      # - firebase:/app/fb/functions:rw
+      # - firebase:/app/fb/public:rw
+      - firebase:/home/docker/.cache/firebase/emulators:rw
+      - firebase:/app/fb:rw
+    environment:
+      FIREBASE_TOKEN: ${FIREBASE_TOKEN-}
+      FIREBASE_PROJECT: ${FIREBASE_PROJECT-}
+    ports:
+      - 5001:5001
+      - 9000:9000
+      - 8080:8080
+      - 8085:8085
+      - 5000:5000
+      - 4000:4000
+    entrypoint:
+      ["/app/entrypoint.sh", "run_basic"]
+
+volumes:
+  firebase:
+    driver: local
+    driver_opts:
+      type: volume
+      o: bind
+      device: "${PWD}/data"

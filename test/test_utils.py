@@ -5,7 +5,7 @@
 # See the NOTICE file distributed with this work for additional information
 # regarding copyright ownership.
 #
-# Licensed under the Apache License, Version 2.0 (the 'License');
+# Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with
 # the License.  You may obtain a copy of the License at
 #
@@ -19,25 +19,22 @@
 # under the License.
 
 
-try:
-    from cloud import endpoints
-except (ImportError, ModuleNotFoundError):
-    from test.app.cloud import endpoints
+import pytest
+
+from test.app.cloud import utils
 
 
-# Cloud Function Entrypoint
+@pytest.mark.unit
+def test__clean_list():
+    to_remove = ['a', 'b', 'c']
 
-def _all(request):
-    return endpoints.handle_all(request)
+    _fn = utils.path_stripper(to_remove)
 
-
-def _auth(request):
-    return endpoints.handle_auth(request)
-
-
-def _meta(request):
-    return endpoints.handle_meta(request)
-
-
-def _data(request):
-    return endpoints.handle_data(request)
+    for path in (
+        ['a', 'b', 'c', 'd'],
+        ['a', 'b', 'd'],
+        ['d', 'e']
+    ):
+        res = _fn(path)
+        assert(not any([i in res for i in to_remove]))
+        assert(len(res) > 0)
