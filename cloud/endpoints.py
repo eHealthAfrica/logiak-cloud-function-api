@@ -76,14 +76,15 @@ AUTH_HANDLER = AuthHandler(RTDB)
 
 # route all from base path (usually APP_ID, name or alias)
 def handle_all(request):
-    root = _STRIP(request.path.split('/'))[0]
+    path = request.path.split('/')
+    root = _STRIP(path)[0]
     if root == 'auth':
         return handle_auth(request)
     elif root == 'meta':
         return handle_meta(request)
     elif root == 'data':
         return handle_data(request)
-    return Response('Not Found', 404)
+    return Response(f'Not Found @ {path}', 404)
 
 
 def handle_auth(request):
