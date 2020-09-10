@@ -10,9 +10,12 @@
 
 ## Deployment Requirements:
 
- - FIREBASE_URL
- - WEB_API_KEY
- - LOGIAK_APP_ID
+ - FIREBASE_URL: url of the firebase project
+ - WEB_API_KEY: web api-key for the firebase project, to allow proxying of authentication
+ - LOGIAK_APP_ID: application_id of the targeted project in logiak
+
+Optional [default]:
+ - CORS_DOMAIN [\*]
 
 
 ## Services
