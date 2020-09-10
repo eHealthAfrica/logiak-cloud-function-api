@@ -74,8 +74,11 @@ AUTH_HANDLER = AuthHandler(RTDB)
 def allow_cors(fn):
     cors_domain = os.environ.get('CORS_DOMAIN', '*')
 
-    def wrapper(*args, **kwargs):
-        res: Response = fn(*args, **kwargs)
+    def wrapper(request, *args, **kwargs):
+        if request.method != 'OPTIONS':
+            res: Response = fn(*args, **kwargs)
+        else:
+            res = Response('', 204)
         res.headers.set('Access-Control-Allow-Origin', cors_domain)
         res.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         return res
