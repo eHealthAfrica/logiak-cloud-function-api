@@ -23,7 +23,7 @@ import os
 
 import firebase_admin
 from firebase_admin.credentials import ApplicationDefault
-from flask import Response
+from flask import make_response, Response
 from google.auth.credentials import AnonymousCredentials
 from google.cloud.firestore_v1.client import Client as CFS_Client
 
@@ -74,10 +74,13 @@ AUTH_HANDLER = AuthHandler(RTDB)
 def allow_cors(fn):
     cors_domain = os.environ.get('CORS_DOMAIN', '*')
 
-    def wrapper(*args, **kwargs):
-        res: Response = fn(*args, **kwargs)
-        res.headers.set('Access-Control-Allow-Origin', cors_domain)
-        res.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    def wrapper(request, *args, **kwargs):
+        if request.method != 'OPTIONS':
+            res: Response = fn(request, *args, **kwargs)
+        else:
+            res = Response('', 204)
+        res.headers['Access-Control-Allow-Origin'] = cors_domain
+        res.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, DELETE'
         return res
     return wrapper
 
