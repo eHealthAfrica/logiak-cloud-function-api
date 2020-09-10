@@ -71,10 +71,22 @@ RTDB = fb_utils.RTDB(APP)
 AUTH_HANDLER = AuthHandler(RTDB)
 
 
+def allow_cors(fn):
+    cors_domain = os.environ.get('CORS_DOMAIN', '*')
+
+    def wrapper(*args, **kwargs):
+        res: Response = fn(*args, **kwargs)
+        res.headers.set('Access-Control-Allow-Origin', cors_domain)
+        res.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        return res
+    return wrapper
+
+
 # actual request handlers
 
 
 # route all from base path (usually APP_ID, name or alias)
+@allow_cors
 def handle_all(request):
     path = request.path.split('/')
     root = _STRIP(path)[0]
@@ -87,17 +99,20 @@ def handle_all(request):
     return Response(f'Not Found @ {path}', 404)
 
 
+@allow_cors
 def handle_auth(request):
     data = request.get_json(force=True, silent=True)
     return auth_request(data, AUTH_HANDLER)
 
 
+@allow_cors
 @require_auth(AUTH_HANDLER)
 def handle_meta(request):
     path = request.path.split('/')
     return meta.resolve(path, RTDB)
 
 
+@allow_cors
 @require_auth(AUTH_HANDLER)
 def handle_data(request):
     user_id = request.headers.get('Logiak-User-Id')
