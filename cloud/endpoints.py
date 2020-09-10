@@ -38,7 +38,7 @@ LOG = logging.getLogger('EP')
 LOG.setLevel(logging.DEBUG)
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
-_STRIP = utils.path_stripper([ROOT_PATH])
+_STRIP = utils.path_stripper([ROOT_PATH, ''])
 
 
 SCHEMAS = {}
