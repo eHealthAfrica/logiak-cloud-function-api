@@ -63,8 +63,8 @@ class Firestore(object):
         else:
             return self.cfs.collection(path)
 
-    def list(self, path):
-        return [i.id for i in self.ref(path).list_documents()]
+    def list(self, path=None, _id=None, full_path=None):
+        return [i.id for i in self.ref(path, _id, full_path).list_documents()]
 
     def write(self, path=None, value=None, _id=None, full_path=None):
         _set_ref = self.ref(path, _id, full_path)

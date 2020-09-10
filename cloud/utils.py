@@ -49,3 +49,10 @@ def path_stripper(to_exclude: List):
         return path_parts
 
     return _fn
+
+
+def chunk(obj, size):
+    n = max(1, size)
+    return (
+        obj[i:i + size] for i in range(0, len(obj), n)
+    )

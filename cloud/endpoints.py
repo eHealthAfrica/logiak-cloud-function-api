@@ -32,7 +32,7 @@ try:
 except ImportError:
     from test.app.cloud.auth import AuthHandler, auth_request, require_auth
 
-from . import fb_utils, meta, utils
+from . import data, fb_utils, meta, utils
 
 LOG = logging.getLogger('EP')
 LOG.setLevel(logging.DEBUG)
@@ -99,6 +99,6 @@ def handle_meta(request):
 
 @require_auth(AUTH_HANDLER)
 def handle_data(request):
-    return None
-    # path = request.path.split('/')
-    # return data.resolve(path, RTDB)
+    user_id = request.headers.get('Logiak-User-Id')
+    path = request.path.split('/')
+    return data.resolve(user_id, path, CFS)

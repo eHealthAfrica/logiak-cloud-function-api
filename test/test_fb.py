@@ -24,7 +24,7 @@ import os
 import pytest
 
 
-from test.app.cloud import meta
+from test.app.cloud import meta, data
 
 from test.app.cloud.auth import require_auth
 from test.app.cloud.utils import escape_email
@@ -47,6 +47,7 @@ TEST_USER = 'aboubacar.douno@ehealthnigeria.org'
 TEST_APP_VERSION = '0.0.42'
 TEST_APP_LANG = 'en'
 TEST_OBJECT_TYPE = 'batch'
+TEST_OWNED_OF_TYPE = 5
 
 
 @pytest.mark.integration
@@ -189,3 +190,100 @@ def test__meta_get_schema(rtdb):  # noqa
     assert(res is not None)
     assert(isinstance(res, dict))
     assert('name' in res.keys())
+
+
+# DATA
+
+@pytest.mark.integration
+def test__data_eligible_docs(cfs):  # noqa
+    assert(
+        len(data._eligible_docs(
+            cfs,
+            TEST_USER,
+            TEST_OBJECT_TYPE)) == TEST_OWNED_OF_TYPE)
+
+
+@pytest.mark.integration
+def test__data_eligible_doc(cfs):  # noqa
+    _ids = data._eligible_docs(
+        cfs,
+        TEST_USER,
+        TEST_OBJECT_TYPE)
+    _id = _ids[0]
+    assert(data._is_eligible(
+        cfs,
+        TEST_USER,
+        TEST_OBJECT_TYPE,
+        _id))
+
+
+@pytest.mark.integration
+def test__data_get_single_doc(cfs):  # noqa
+    _ids = data._eligible_docs(
+        cfs,
+        TEST_USER,
+        TEST_OBJECT_TYPE)
+    _id = _ids[0]
+    _doc = data._get(
+        cfs,
+        TEST_USER,
+        TEST_OBJECT_TYPE,
+        _id)
+    doc = json.loads(_doc)
+    assert(doc['uuid'] in _ids)
+
+
+@pytest.mark.integration
+def test__data_dont_get_bad_doc(cfs):  # noqa
+    _ids = data._eligible_docs(
+        cfs,
+        TEST_USER,
+        TEST_OBJECT_TYPE)
+    _id = _ids[0]
+    _doc = data._get(
+        cfs,
+        'bad-user',
+        TEST_OBJECT_TYPE,
+        _id)
+    assert(_doc is None)
+
+
+@pytest.mark.integration
+def test__data_query_no_filter(cfs):  # noqa
+    _gen = data._query(
+        cfs,
+        TEST_USER,
+        TEST_OBJECT_TYPE,
+        {})
+    # read it as Flask will report it
+    res = ''.join(_gen)
+    _docs = json.loads(res)
+    # make sure only allowed docs were returned
+    allowed_ids = data._eligible_docs(
+        cfs,
+        TEST_USER,
+        TEST_OBJECT_TYPE)
+    assert(
+        all([(i.get('uuid') in allowed_ids) for i in _docs])
+    )
+
+
+@pytest.mark.integration
+def test__data_query_no_matches(cfs):  # noqa
+    _gen = data._query(
+        cfs,
+        'bad-user',
+        TEST_OBJECT_TYPE,
+        {})
+    # read it as Flask will report it
+    res = ''.join(_gen)
+    _docs = json.loads(res)
+    # make sure only allowed docs were returned
+    assert(
+        _docs == []
+    )
+
+
+# @pytest.mark.integration
+# def test__data_(cfs):  # noqa
+#     pass
