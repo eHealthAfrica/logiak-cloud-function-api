@@ -18,7 +18,7 @@ services:
       "start"
 
   emulator:
-    image: ehealthafrica/firebase-emulator:local
+    image: ehealthafrica/firebase-emulator:latest
     volumes:
       # - ./hosted.json:/app/override.json:rw
       # - firebase:/app/fb/functions:rw
