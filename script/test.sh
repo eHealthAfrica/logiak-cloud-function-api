@@ -24,11 +24,19 @@ set -Eeuo pipefail
 MODE="$1"
 
 # On Exit
-# trap 'docker-compose down' EXIT
-docker-compose build >> /dev/null
+trap 'docker-compose down' EXIT
 
-if [[ $MODE == "integration" ]]; then
+mkdir ./data >> /dev/null || true
+if [[ $MODE == "integration" || $MODE == "all" ]]; then
     docker-compose up -d emulator
 fi
+docker-compose build >> /dev/null
 
-docker-compose run --rm test-library test "$MODE"
+if [[ $MODE == "all" ]]; then
+    docker-compose run --rm test-library test_all
+else
+    docker-compose run --rm test-library test "$MODE"    
+fi
+
+
+

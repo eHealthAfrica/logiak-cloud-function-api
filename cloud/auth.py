@@ -130,7 +130,6 @@ def auth_request(data, auth_handler):
     required = ['username', 'password']
     if (missing := missing_required(data, required)):
         return Response(f'Missing expected data: {missing}', 400)
-
     if not auth_handler.sign_in_with_email_and_password(data['username'], data['password']):
         return Response('Bad Credentials', 401)
     if not auth_handler.user_has_app_access(data['username']):

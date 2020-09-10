@@ -24,7 +24,7 @@ import os
 import pytest
 
 
-from test.app.cloud import meta, data
+from test.app.cloud import meta, data, auth
 
 from test.app.cloud.auth import require_auth
 from test.app.cloud.utils import escape_email
@@ -73,6 +73,31 @@ def test__auth_has_app(MockAuthHandler):  # noqa
 @pytest.mark.integration
 def test__auth_has_app(MockAuthHandler, email, res):  # noqa
     assert(MockAuthHandler.user_has_app_access(email) is res)
+
+
+@pytest.mark.parametrize('body,code', [
+    (
+        {
+            "username": TEST_USER
+        },
+        400),
+    (
+        {
+            "username": "bad-user",
+            "password": "password"
+        },
+        401),
+    (
+        {
+            "username": TEST_USER,
+            "password": "a-fake-password"
+        },
+        200)
+])
+@pytest.mark.integration
+def test__auth_events(MockAuthHandler, body, code):  # noqa
+    res = auth.auth_request(body, MockAuthHandler)
+    assert(res.status_code == code)
 
 
 @pytest.mark.integration

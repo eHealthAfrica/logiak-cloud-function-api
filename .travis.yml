@@ -1,0 +1,15 @@
+language: python
+python:
+  - "3.8"
+services:
+- docker
+cache: pip
+
+matrix:
+  fast_finish: true
+  include:
+
+    - name: "Test"
+      stage: test
+      install: true
+      script: "./script/test.sh all"

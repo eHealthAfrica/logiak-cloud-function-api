@@ -79,7 +79,7 @@ class Firestore(object):
 
 # recursive generator to extract data from a nested CFS path
 # USAGE: all_docs = next(cfs_delve(head_document))
-def cfs_delve(doc):
+def cfs_delve(doc):  # pragma nocover  # used in scraper, not app
     if isinstance(doc, CollectionReference):
         yield from (cfs_delve(doc) for doc in doc.list_documents())
     else:
