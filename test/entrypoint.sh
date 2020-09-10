@@ -32,6 +32,12 @@ test() {
     rm -rf tests/__pycache__ || true
 }
 
+test_all() {
+    $PYTEST
+    rm -R .pytest_cache || true
+    rm -rf tests/__pycache__ || true
+}
+
 run_local() {
     export FLASK_APP=app.local_server
     flask run --host=0.0.0.0 --port=9009
@@ -64,6 +70,11 @@ case "$1" in
     test)
         test_flake8
         test "${@:2}"
+    ;;
+
+    test_all)
+        test_flake8
+        test_all
     ;;
 
     test_lint)

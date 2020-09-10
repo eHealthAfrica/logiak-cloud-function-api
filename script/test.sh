@@ -27,8 +27,15 @@ MODE="$1"
 # trap 'docker-compose down' EXIT
 docker-compose build >> /dev/null
 
-if [[ $MODE == "integration" ]]; then
+if [[ $MODE == "integration" || $MODE == "integration" ]]; then
     docker-compose up -d emulator
 fi
 
-docker-compose run --rm test-library test "$MODE"
+if [[ $MODE == "all" ]]; then
+    docker-compose run --rm test-library test_all
+else
+    docker-compose run --rm test-library test "$MODE"    
+fi
+
+
+

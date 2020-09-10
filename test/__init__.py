@@ -38,7 +38,6 @@ from google.cloud.firestore_v1.client import Client as CFS_Client
 
 
 from test.app.cloud import fb_utils
-from test.app.mock import endpoints
 
 from test.app.cloud.auth import AuthHandler
 from test.app.cloud.utils import escape_email, escape_version
@@ -61,13 +60,6 @@ _rtdb_options = {
 }
 
 FIREBASE_APP = None
-
-
-@pytest.fixture(scope='function')
-def AuthHeaders():
-    return {
-        'Logiak-User-Id': endpoints.MOCK_USER, 'Logiak-Session-Key': endpoints.TOKEN
-    }
 
 
 class MockPostRequest(object):
