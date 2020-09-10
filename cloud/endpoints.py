@@ -80,6 +80,7 @@ def allow_cors(fn):
         else:
             res = Response('', 204)
         res.headers['Access-Control-Allow-Origin'] = cors_domain
+        res.headers['Access-Control-Allow-Headers'] = '*'
         res.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, DELETE'
         return res
     return wrapper
