@@ -18,10 +18,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 
 import pytest
 
-from test.app.cloud import utils
+from test.app.cloud import utils, query
 
 
 @pytest.mark.unit
@@ -38,3 +39,18 @@ def test__clean_list():
         res = _fn(path)
         assert(not any([i in res for i in to_remove]))
         assert(len(res) > 0)
+
+
+@pytest.mark.unit
+def test__parse_query_json():
+    simple_filter = '''
+    {
+      "fieldFilter": {
+        "field": {"fieldPath": "name"},
+        "op": "EQUAL",
+        "value": {"stringValue": "XYZ"}
+      }
+    }
+    '''
+    _q = query.Query(filter=json.loads(simple_filter))
+    _q.validate()
