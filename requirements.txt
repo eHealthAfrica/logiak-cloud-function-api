@@ -2,3 +2,4 @@ aether.python
 firebase_admin
 flask
 google-cloud-firestore
+pydantic

@@ -27,12 +27,16 @@ from spavro.schema import parse
 import json
 import logging
 import os
-from typing import List, Generator
+from typing import Iterator, List, Generator
 
 from flask import Response
+from pydantic.error_wrappers import ValidationError as PydanticValidationError
 
 from . import fb_utils
+from .query import StructuredQuery
 from .utils import chunk, escape_email, path_stripper
+
+from google.cloud import firestore_v1
 
 
 LOG = logging.getLogger('DATA')
@@ -59,7 +63,16 @@ def resolve(user_id, path: List, cfs: fb_utils.Firestore, data=None) -> Response
             if doc := _get(cfs, user_id, _type, _id):
                 return Response(doc, 200, mimetype='application/json')
         elif path[1] == 'query':
-            return Response(_query(cfs, user_id, _type), 200, mimetype='application/json')
+            try:
+                if data:
+                    # validate outside of the generator
+                    data = StructuredQuery(**data)
+                    _response_generator = _query(cfs, user_id, _type, data)
+                else:
+                    _response_generator = _query(cfs, user_id, _type, None)
+                return Response(_response_generator, 200, mimetype='application/json')
+            except PydanticValidationError as pvr:
+                return Response(f'Invalid StructuredQuery: {pvr}', 400, mimetype='application/text')
         elif path[1] == 'create':
             return Response('Not implemented', 501)
     except IndexError:
@@ -99,28 +112,85 @@ def _query(
     cfs: fb_utils.Firestore,
     user_id: str,
     _type: str,
-    query: dict = None  # non-op   # TODO
+    structured_query: StructuredQuery = None
 ) -> Generator:
+    # raises validation errors
     _ids = chunk(_eligible_docs(cfs, user_id, _type), 10)
     uri = f'{APP_ID}/data/{_type}'
     ref = cfs.ref(path=uri)
+    # if the query is not ordered then we can stream it directly
+    if not structured_query or not structured_query.is_ordered():
+        yield from unordered_query(ref, structured_query, _ids)
+    else:
+        yield from ordered_query(ref, structured_query, _ids)
+
+
+def unordered_query(
+    query_: firestore_v1.query.Query,
+    structured_query: StructuredQuery,
+    _ids: Iterator[str]
+):
+    # in case of a whole lot of records, we can build a generator to stream them directly.
+    # This should be the fastest way to do so, but only worked for unordered queries
+    # because of the way that we implement Logiak's  RBAC, by pulling all the valid IDs,
+    # and the CFS limitation that an "in" query can only have 10 values.
+    # Yielding chunks of json is however quite tricky to implement as the number is unknown
+    # 0 >= n_docs <= Infinity?
+
     yield '['
     # we have to hold off on adding the last element to make the json format properly
     last = None
+    # we also have to keep track of whether we only have on record total so we don't break
+    # formatting when we add the last one at the end.
+    only = True
     for _from in _ids:
-        LOG.debug(_from)
-        base_query = ref.where(u'uuid', u'in', _from)
-        res = list(base_query.stream())
-        if res and last:
+        query_ = query_.where(u'uuid', u'in', _from)
+        if structured_query:
+            query_ = structured_query.filter(query_)
+        res = list(query_.stream())
+        if not res:
+            continue
+        elif res and last:
+            only = False
             yield ','
             yield json.dumps(last.to_dict(), sort_keys=True)
             yield ','
-        last = res[-1]
-        yield ','.join([json.dumps(doc.to_dict(), sort_keys=True) for doc in res[:len(res) - 1]])
+        elif res and not last:
+            last = res[-1]
+            res = res[:-1]
+            if res:
+                only = False
+                yield ','.join(
+                    [json.dumps(doc.to_dict(), sort_keys=True) for doc in res[:len(res)]]
+                )
     if last:
-        yield ','
+        if not only:
+            yield ','
         yield json.dumps(last.to_dict(), sort_keys=True)
     yield ']'
+
+
+def all_matching_docs(
+    query_: firestore_v1.query.Query,
+    structured_query: StructuredQuery,
+    _ids: Iterator[str]
+):
+    for _from in _ids:
+        query_ = query_.where(u'uuid', u'in', _from)
+        if structured_query:
+            query_ = structured_query.filter(query_).stream()
+        for doc in query_:
+            yield doc.to_dict()
+
+
+def ordered_query(
+    query_: firestore_v1.query.Query,
+    structured_query: StructuredQuery,
+    _ids: Iterator[str]
+):
+    docs = list(all_matching_docs(query_, structured_query, _ids))
+    docs = structured_query.order(docs)
+    yield json.dumps(docs, sort_keys=True)
 
 
 # write

@@ -24,7 +24,7 @@ set -Eeuo pipefail
 MODE="$1"
 
 # On Exit
-trap 'docker-compose down' EXIT
+# trap 'docker-compose down' EXIT
 
 mkdir ./data >> /dev/null || true
 if [[ $MODE == "integration" || $MODE == "all" ]]; then

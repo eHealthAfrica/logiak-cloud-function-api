@@ -6,6 +6,7 @@ flake8
 functions-framework==1.0.0
 google.cloud
 google-cloud-pubsub
+pydantic
 pytest
 pytest-cov
 pytest-mock

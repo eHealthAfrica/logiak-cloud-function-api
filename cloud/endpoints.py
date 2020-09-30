@@ -121,4 +121,5 @@ def handle_meta(request):
 def handle_data(request):
     user_id = request.headers.get('Logiak-User-Id')
     path = request.path.split('/')
-    return data.resolve(user_id, path, CFS)
+    data_ = request.get_json()
+    return data.resolve(user_id, path, CFS, data_)
