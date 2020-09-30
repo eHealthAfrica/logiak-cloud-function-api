@@ -30,6 +30,7 @@ import os
 from typing import Iterator, List, Generator
 
 from flask import Response
+from pydantic.error_wrappers import ValidationError as PydanticValidationError
 
 from . import fb_utils
 from .query import StructuredQuery
@@ -62,7 +63,14 @@ def resolve(user_id, path: List, cfs: fb_utils.Firestore, data=None) -> Response
             if doc := _get(cfs, user_id, _type, _id):
                 return Response(doc, 200, mimetype='application/json')
         elif path[1] == 'query':
-            return Response(_query(cfs, user_id, _type), 200, mimetype='application/json')
+            try:
+                if data:
+                    # validate outside of the generator
+                    data = StructuredQuery(**data)
+                _response_generator = _query(cfs, user_id, _type, data)
+                return Response(_response_generator, 200, mimetype='application/json')
+            except PydanticValidationError as pvr:
+                return Response(f'Invalid StructuredQuery: {pvr}', 400, mimetype='application/text')
         elif path[1] == 'create':
             return Response('Not implemented', 501)
     except IndexError:
@@ -102,15 +110,14 @@ def _query(
     cfs: fb_utils.Firestore,
     user_id: str,
     _type: str,
-    query: dict = None
+    structured_query: StructuredQuery = None
 ) -> Generator:
     # raises validation errors
-    structured_query = StructuredQuery(**query) if query else None
     _ids = chunk(_eligible_docs(cfs, user_id, _type), 10)
     uri = f'{APP_ID}/data/{_type}'
     ref = cfs.ref(path=uri)
     # if the query is not ordered then we can stream it directly
-    if not query or not structured_query.is_ordered():
+    if not structured_query or not structured_query.is_ordered():
         yield from unordered_query(ref, structured_query, _ids)
     else:
         yield from ordered_query(ref, structured_query, _ids)
@@ -121,6 +128,12 @@ def unordered_query(
     structured_query: StructuredQuery,
     _ids: Iterator[str]
 ):
+    # in case of a whole lot of records, we can build a generator to stream them directly.
+    # This should be the fastest way to do so, but only worked for unordered queries
+    # because of the way that we implement Logiak's  RBAC, by pulling all the valid IDs,
+    # and the CFS limitation that an "in" query can only have 10 values.
+    # Yielding chunks of json is however quite tricky to implement as the number is unknown
+    # 0 >= n_docs <= Infinity?
 
     yield '['
     # we have to hold off on adding the last element to make the json format properly
