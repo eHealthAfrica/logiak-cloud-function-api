@@ -23,6 +23,7 @@ import json
 import os
 import pytest
 
+from pydantic.error_wrappers import ValidationError as PydanticValidationError
 
 from test.app.cloud import meta, data, auth
 
@@ -308,6 +309,284 @@ def test__data_query_no_matches(cfs):  # noqa
         _docs == []
     )
 
+
+@pytest.mark.parametrize('query,result_size,error', [
+    (
+        {},
+        5,
+        False),
+    (
+        {
+            "where": {
+                "filter": {
+                    "fieldFilter": {
+                        "field": {
+                            "fieldPath": "program"
+                        },
+                        "op": "EQUAL",
+                        "value": {
+                            "stringValue": "Missing"
+                        }
+                    }
+                }
+            }
+        },
+        0,
+        False),
+    (
+        {
+            "where": {
+                "filter": {
+                    "fieldFilter": {
+                        "field": {
+                            "fieldPath": "program"
+                        },
+                        "op": "EQUAL",
+                        "value": {
+                            "stringValue": "Malaria"
+                        }
+                    }
+                }
+            }
+        },
+        5,
+        False),
+    (
+        {
+            "where": {
+                "filter": {
+                    "fieldFilter": {
+                        "field": {
+                            "fieldPath": "program"
+                        },
+                        "op": "GREATER_THAN",
+                        "value": {
+                            "stringValue": "Lalaria"
+                        }
+                    }
+                }
+            }
+        },
+        5,
+        False),
+    (
+        {
+            "where": {
+                "filter": {
+                    "compositeFilter": {
+                        "filters": [
+                            {
+                                "filter": {
+                                    "fieldFilter": {
+                                        "field": {
+                                            "fieldPath": "program"
+                                        },
+                                        "op": "EQUAL",
+                                        "value": {
+                                            "stringValue": "Malaria"
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "filter": {
+                                    "fieldFilter": {
+                                        "field": {
+                                            "fieldPath": "batch_number"
+                                        },
+                                        "op": "EQUAL",
+                                        "value": {
+                                            "stringValue": "0076"
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        1,
+        False),
+    (
+        {
+            "where": {
+                "filter": {
+                    "fieldFilter": {
+                        "field": {
+                            "fieldPath": "program"
+                        },
+                        "op": "LESS_THAN",
+                        "value": {
+                            "stringValue": "Lalaria"
+                        }
+                    }
+                }
+            }
+        },
+        0,
+        False),
+    (
+        {
+            "where": {
+                "badName": {}
+            }
+        },
+        0,
+        True)
+])
+@pytest.mark.integration
+def test__data_query_dynamic(cfs, query, result_size, error):  # noqa
+    _gen = data._query(
+        cfs,
+        TEST_USER,
+        TEST_OBJECT_TYPE,
+        query)
+    if error:
+        with pytest.raises(PydanticValidationError):
+            res = ''.join(_gen)
+    else:
+        # read it as Flask will report it
+        res = ''.join(_gen)
+        LOG.debug(res)
+        _docs = json.loads(res)
+        LOG.debug(json.dumps(_docs, indent=2))
+        assert(len(_docs) == result_size)
+
+
+@pytest.mark.parametrize('query,field,result,first', [
+    (
+        {
+            "orderBy": [
+                {
+                    "field": {"fieldPath": "batch_number"},
+                    "direction": "ASCENDING"
+                }
+            ]
+        },
+        'batch_number',
+        '001',
+        True),
+    (
+        {
+            "orderBy": [
+                {
+                    "field": {"fieldPath": "batch_number"},
+                    "direction": "DESCENDING"
+                }
+            ]
+        },
+        'batch_number',
+        '0076',
+        True),
+    (
+        {
+            "orderBy": [
+                {
+                    "field": {"fieldPath": "batch_number"},
+                    "direction": "ASCENDING"
+                }
+            ],
+            "startAt": {
+                "values": [
+                    {"stringValue": "002"}
+                ]
+            }
+        },
+        'batch_number',
+        '002',
+        True),
+    (
+        {
+            "orderBy": [
+                {
+                    "field": {"fieldPath": "batch_number"},
+                    "direction": "ASCENDING"
+                }
+            ],
+            "startAt": {
+                "before": True,
+                "values": [
+                    {
+                        "stringValue": "002",
+                    }
+                ]
+            }
+        },
+        'batch_number',
+        '003',
+        True),
+    (
+        {
+            "orderBy": [
+                {
+                    "field": {"fieldPath": "batch_number"},
+                    "direction": "ASCENDING"
+                }
+            ],
+            "endAt": {
+                "values": [
+                    {"stringValue": "003"}
+                ]
+            }
+        },
+        'batch_number',
+        '003',
+        False),
+    (
+        {
+            "orderBy": [
+                {
+                    "field": {"fieldPath": "batch_number"},
+                    "direction": "ASCENDING"
+                }
+            ],
+            "endAt": {
+                "before": True,
+                "values": [
+                    {
+                        "stringValue": "003",
+                    }
+                ]
+            }
+        },
+        'batch_number',
+        '002',
+        False),
+])
+@pytest.mark.integration
+def test__data_query_order(cfs, query, field, result, first):  # noqa
+    base_query = {
+        "where": {
+            "filter": {
+                "fieldFilter": {
+                    "field": {
+                        "fieldPath": "program"
+                    },
+                    "op": "EQUAL",
+                    "value": {
+                        "stringValue": "Malaria"
+                    }
+                }
+            }
+        }
+    }
+    query = dict(**query, **base_query)
+    LOG.debug(json.dumps(query, indent=2))
+    _gen = data._query(
+        cfs,
+        TEST_USER,
+        TEST_OBJECT_TYPE,
+        query)
+    # read it as Flask will report it
+    res = ''.join(_gen)
+    _docs = json.loads(res)
+    LOG.debug(json.dumps(_docs, indent=2))
+    # "If you're not first, you're last" -- Ricky Bobby
+    if first:
+        assert(_docs[0][field] == result)
+    else:
+        assert(_docs[-1][field] == result)
 
 # @pytest.mark.integration
 # def test__data_(cfs):  # noqa

@@ -18,9 +18,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import json
-
 import pytest
+from pydantic.error_wrappers import ValidationError
 
 from test.app.cloud import utils, query
 
@@ -41,16 +40,102 @@ def test__clean_list():
         assert(len(res) > 0)
 
 
-@pytest.mark.unit
-def test__parse_query_json():
-    simple_filter = '''
-    {
-      "fieldFilter": {
-        "field": {"fieldPath": "name"},
-        "op": "EQUAL",
-        "value": {"stringValue": "XYZ"}
+@pytest.mark.parametrize('body,valid', (
+    ('''{
+      "where" : {
+        "filter": {
+          "fieldFilter": {
+            "field": {"fieldPath": "name"},
+            "op": "EQUAL",
+            "value": {"booleanValue": "true"}
+          }
+        }
       }
-    }
-    '''
-    _q = query.Query(filter=json.loads(simple_filter))
-    _q.validate()
+    }''', True),
+    # bad enum value
+    ('''{
+      "where" : {
+        "filter": {
+          "fieldFilter": {
+            "field": {"fieldPath": "name"},
+            "op": "MISSING",
+            "value": {"booleanValue": "true"}
+          }
+        }
+      }
+    }''', False),
+    # extra info
+    ('''{
+      "bad_query_header" : {}
+    }''', True),
+    # bad sub - fields
+    ('''{
+      "where" : {
+        "filter": {
+          "unaryFilter": {
+            "field": {"fieldPath": "name"},
+            "value": {"booleanValue": "true"}
+          }
+        }
+      }
+    }''', False),
+    # use Unary Filter (not implemented in Python)
+    ('''{
+      "where" : {
+        "filter": {
+          "unaryFilter": {
+            "field": {"fieldPath": "name"},
+            "op": "IS_NAN"
+          }
+        }
+      }
+    }''', False),
+    # only set order
+    ('''{
+      "orderBy" : [
+          {
+            "field": {"fieldPath": "name"},
+            "direction": "ASCENDING"
+          }
+        ]
+    }''', True),
+    # empty orderBy
+    ('''{
+      "orderBy" : [
+        ]
+    }''', True),
+    ('''{
+      "orderBy" : [
+          {
+            "field": {"fieldPath": "someDate"},
+            "direction": "ASCENDING"
+          }
+        ],
+      "startAt" : {
+        "values" : [
+            {"booleanValue": "true"}
+        ]}
+    }''', True),
+    # missing orderBy
+    ('''{
+      "startAt" : { "values": [
+            {"booleanValue": "true"}
+        ]}
+    }''', False),
+    # not allowed.
+    ('''{
+      "limit": 1
+    }''', False),
+    # not allowed.
+    ('''{
+      "offset": 1
+    }''', False),
+))
+@pytest.mark.unit
+def test__parse_query_json(body, valid):
+    if not valid:
+        with pytest.raises(ValidationError):
+            _q = query.StructuredQuery.parse_raw(body)
+    else:
+        _q = query.StructuredQuery.parse_raw(body)
+        assert(_q.dict())
