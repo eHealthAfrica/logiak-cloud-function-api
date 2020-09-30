@@ -67,7 +67,9 @@ def resolve(user_id, path: List, cfs: fb_utils.Firestore, data=None) -> Response
                 if data:
                     # validate outside of the generator
                     data = StructuredQuery(**data)
-                _response_generator = _query(cfs, user_id, _type, data)
+                    _response_generator = _query(cfs, user_id, _type, data)
+                else:
+                    _response_generator = _query(cfs, user_id, _type, None)
                 return Response(_response_generator, 200, mimetype='application/json')
             except PydanticValidationError as pvr:
                 return Response(f'Invalid StructuredQuery: {pvr}', 400, mimetype='application/text')

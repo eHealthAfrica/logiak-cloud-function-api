@@ -26,6 +26,7 @@ import pytest
 from pydantic.error_wrappers import ValidationError as PydanticValidationError
 
 from test.app.cloud import meta, data, auth
+from test.app.cloud.query import StructuredQuery
 
 from test.app.cloud.auth import require_auth
 from test.app.cloud.utils import escape_email
@@ -437,15 +438,16 @@ def test__data_query_no_matches(cfs):  # noqa
 ])
 @pytest.mark.integration
 def test__data_query_dynamic(cfs, query, result_size, error):  # noqa
-    _gen = data._query(
-        cfs,
-        TEST_USER,
-        TEST_OBJECT_TYPE,
-        query)
     if error:
         with pytest.raises(PydanticValidationError):
-            res = ''.join(_gen)
+            query = StructuredQuery(**query)
     else:
+        query = StructuredQuery(**query)
+        _gen = data._query(
+            cfs,
+            TEST_USER,
+            TEST_OBJECT_TYPE,
+            query)
         # read it as Flask will report it
         res = ''.join(_gen)
         LOG.debug(res)
@@ -572,7 +574,7 @@ def test__data_query_order(cfs, query, field, result, first):  # noqa
         }
     }
     query = dict(**query, **base_query)
-    LOG.debug(json.dumps(query, indent=2))
+    query = StructuredQuery(**query)
     _gen = data._query(
         cfs,
         TEST_USER,
