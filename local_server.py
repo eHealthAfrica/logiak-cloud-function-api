@@ -35,3 +35,13 @@ def all(text):
         return main._meta(request)
     if text.startswith('data'):
         return main._data(request)
+
+
+# Add function loggers to the main Flask Logger
+loggers = [
+    logging.getLogger(name)
+    for name in logging.root.manager.loggerDict
+    if name in ['EP', 'DATA', 'QRY', 'META']
+]
+for l_ in loggers:
+    l_.handlers.append(app.logger.handlers[0])

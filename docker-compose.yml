@@ -6,8 +6,13 @@ services:
     build: .
     environment:
       TEST: 'true'
+      # emulator instance
       FIRESTORE_EMULATOR_HOST: emulator:8080
       FIREBASE_DATABASE_EMULATOR_HOST: emulator:9000
+      # connect to real instance (optional)
+      # FIREBASE_HOST: ${FIREBASE_HOST-}
+      # FIREBASE_CREDENTIALS: ${FIREBASE_CREDENTIALS-}
+      # FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID-}
       LOGIAK_APP_ID: a988b4a4-1cae-4202-a988-c35637d55760 # the demo app (LoMIS) in emulator
       WEB_API_KEY: ${WEB_API_KEY-}
     ports:
