@@ -92,15 +92,18 @@ def allow_cors(fn):
 # route all from base path (usually APP_ID, name or alias)
 @allow_cors
 def handle_all(request):
-    path = request.path.split('/')
-    root = _STRIP(path)[0]
-    if root == 'auth':
-        return handle_auth(request)
-    elif root == 'meta':
-        return handle_meta(request)
-    elif root == 'data':
-        return handle_data(request)
-    return Response(f'Not Found @ {path}', 404)
+    try:
+        path = request.path.split('/')
+        root = _STRIP(path)[0]
+        if root == 'auth':
+            return handle_auth(request)
+        elif root == 'meta':
+            return handle_meta(request)
+        elif root == 'data':
+            return handle_data(request)
+        return Response(f'Not Found @ {path}', 404)
+    except Exception as err:
+        return Response(f'Unhandled Server Error: {err}', 500)
 
 
 @allow_cors
