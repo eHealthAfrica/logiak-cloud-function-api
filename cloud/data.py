@@ -72,15 +72,9 @@ def resolve(user_id, path: List, cfs: fb_utils.Firestore, data=None) -> Response
                     _response_generator = _query(cfs, user_id, _type, data)
                 else:
                     _response_generator = _query(cfs, user_id, _type, None)
-                try:
-                    return Response(_response_generator, 200, mimetype='application/json')
-                except FailedPrecondition as missing_index:
-                    return Response(
-                        f'Query Requires new CFS Index: {missing_index}',
-                        400,
-                        mimetype='text/plain')
-            except PydanticValidationError as pvr:
-                return Response(f'Invalid StructuredQuery: {pvr}', 400, mimetype='text/plain')
+                return Response(_response_generator, 200, mimetype='application/json')
+            except (PydanticValidationError, FailedPrecondition) as pvr:
+                return Response(f'Invalid Query: {pvr}', 400, mimetype='text/plain')
         elif path[1] == 'create':
             return Response('Not implemented', 501)
     except IndexError:
@@ -120,13 +114,10 @@ def _validate_query(
     cfs: fb_utils.Firestore,
     _type: str,
     structured_query: StructuredQuery = None
-) -> bool:
+) -> bool:  # or raises FailedPrecondition from Firebase on query with missing index
     uri = f'{APP_ID}/data/{_type}'
-    query_ = cfs.ref(path=uri)
-    query_ = structured_query.filter(query_).limit(1).stream()
-    for doc in query_:
-        # consume from the generator to trigger any errors:
-        pass
+    query_ = cfs.ref(path=uri).where(u'uuid', u'in', ['__fake_ids'])
+    list(structured_query.filter(query_).limit(1).stream())
     return True
 
 

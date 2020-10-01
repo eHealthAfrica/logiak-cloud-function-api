@@ -19,10 +19,11 @@
 # under the License.
 
 import logging
+import json
 import os
 
 import firebase_admin
-from firebase_admin.credentials import ApplicationDefault
+from firebase_admin.credentials import ApplicationDefault, Certificate
 from flask import make_response, Response
 from google.auth.credentials import AnonymousCredentials
 from google.cloud.firestore_v1.client import Client as CFS_Client
@@ -43,7 +44,21 @@ _STRIP = utils.path_stripper([ROOT_PATH, ''])
 
 SCHEMAS = {}
 
-if (local_fb_uri := os.environ.get('FIREBASE_DATABASE_EMULATOR_HOST', False)):
+if (fb_uri := os.environ.get('FIREBASE_HOST', False)):
+    LOG.debug('Connecting to Live Firebase from local functions')
+    project_id = os.environ.get('FIREBASE_PROJECT_ID')
+    cert = os.environ.get('FIREBASE_CREDENTIALS')
+    credentials = Certificate(json.loads(cert))
+    LOG.debug('Connecting to Local Emulator')
+    APP = firebase_admin.initialize_app(
+        name=project_id,
+        credential=credentials,
+        options={
+            'databaseURL': fb_uri,
+            'projectId': project_id
+        })
+    CFS = fb_utils.Firestore(app=APP)
+elif (local_fb_uri := os.environ.get('FIREBASE_DATABASE_EMULATOR_HOST', False)):
     LOG.debug('Connecting to Local Emulator')
     _local = 'local'
     uri = f'http://{local_fb_uri}/?ns={_local}'
