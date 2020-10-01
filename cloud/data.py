@@ -37,6 +37,7 @@ from .query import StructuredQuery
 from .utils import chunk, escape_email, path_stripper
 
 from google.cloud import firestore_v1
+from google.api_core.exceptions import FailedPrecondition
 
 
 LOG = logging.getLogger('DATA')
@@ -70,9 +71,15 @@ def resolve(user_id, path: List, cfs: fb_utils.Firestore, data=None) -> Response
                     _response_generator = _query(cfs, user_id, _type, data)
                 else:
                     _response_generator = _query(cfs, user_id, _type, None)
-                return Response(_response_generator, 200, mimetype='application/json')
+                try:
+                    return Response(_response_generator, 200, mimetype='application/json')
+                except FailedPrecondition as missing_index:
+                    return Response(
+                        f'Query Requires new CFS Index: {missing_index}',
+                        400,
+                        mimetype='text/plain')
             except PydanticValidationError as pvr:
-                return Response(f'Invalid StructuredQuery: {pvr}', 400, mimetype='application/text')
+                return Response(f'Invalid StructuredQuery: {pvr}', 400, mimetype='text/plain')
         elif path[1] == 'create':
             return Response('Not implemented', 501)
     except IndexError:
