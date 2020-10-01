@@ -68,6 +68,7 @@ def resolve(user_id, path: List, cfs: fb_utils.Firestore, data=None) -> Response
                 if data:
                     # validate outside of the generator
                     data = StructuredQuery(**data)
+                    _validate_query(cfs, _type, data)
                     _response_generator = _query(cfs, user_id, _type, data)
                 else:
                     _response_generator = _query(cfs, user_id, _type, None)
@@ -113,6 +114,20 @@ def _get(
     _doc = cfs.ref(full_path=uri).get()
     if _doc:
         return json.dumps(_doc.to_dict(), sort_keys=True)
+
+
+def _validate_query(
+    cfs: fb_utils.Firestore,
+    _type: str,
+    structured_query: StructuredQuery = None
+) -> bool:
+    uri = f'{APP_ID}/data/{_type}'
+    query_ = cfs.ref(path=uri)
+    query_ = structured_query.filter(query_).limit(1).stream()
+    for doc in query_:
+        # consume from the generator to trigger any errors:
+        pass
+    return True
 
 
 def _query(
