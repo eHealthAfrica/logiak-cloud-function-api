@@ -456,7 +456,7 @@ def test__data_query_dynamic(cfs, query, result_size, error):  # noqa
         assert(len(_docs) == result_size)
 
 
-@pytest.mark.parametrize('query,field,result,first', [
+@pytest.mark.parametrize('query,field,result,first,size', [
     (
         {
             "orderBy": [
@@ -468,7 +468,8 @@ def test__data_query_dynamic(cfs, query, result_size, error):  # noqa
         },
         'batch_number',
         '001',
-        True),
+        True,
+        5),
     (
         {
             "orderBy": [
@@ -480,7 +481,8 @@ def test__data_query_dynamic(cfs, query, result_size, error):  # noqa
         },
         'batch_number',
         '0076',
-        True),
+        True,
+        5),
     (
         {
             "orderBy": [
@@ -491,13 +493,14 @@ def test__data_query_dynamic(cfs, query, result_size, error):  # noqa
             ],
             "startAt": {
                 "values": [
-                    {"stringValue": "002"}
+                    {"stringValue": "001"}
                 ]
             }
         },
         'batch_number',
-        '002',
-        True),
+        '001',
+        True,
+        5),
     (
         {
             "orderBy": [
@@ -517,7 +520,73 @@ def test__data_query_dynamic(cfs, query, result_size, error):  # noqa
         },
         'batch_number',
         '003',
-        True),
+        True,
+        3),
+    (
+        {
+            "orderBy": [
+                {
+                    "field": {"fieldPath": "batch_number"},
+                    "direction": "DESCENDING"
+                }
+            ]
+        },
+        'batch_number',
+        '0076',
+        True,
+        5),
+    (
+        {
+            "orderBy": [
+                {
+                    "field": {"fieldPath": "batch_number"},
+                    "direction": "ASCENDING"
+                }
+            ]
+        },
+        'batch_number',
+        '0076',
+        False,
+        5),
+    (
+        {
+            "orderBy": [
+                {
+                    "field": {"fieldPath": "batch_number"},
+                    "direction": "DESCENDING"
+                }
+            ],
+            "startAt": {
+                "values": [
+                    {"stringValue": "002"}
+                ]
+            }
+        },
+        'batch_number',
+        '002',
+        True,
+        2),
+    (
+        {
+            "orderBy": [
+                {
+                    "field": {"fieldPath": "batch_number"},
+                    "direction": "DESCENDING"
+                }
+            ],
+            "startAt": {
+                "before": True,
+                "values": [
+                    {
+                        "stringValue": "002",
+                    }
+                ]
+            }
+        },
+        'batch_number',
+        '001',
+        True,
+        1),
     (
         {
             "orderBy": [
@@ -534,13 +603,14 @@ def test__data_query_dynamic(cfs, query, result_size, error):  # noqa
         },
         'batch_number',
         '003',
-        False),
+        False,
+        3),
     (
         {
             "orderBy": [
                 {
                     "field": {"fieldPath": "batch_number"},
-                    "direction": "ASCENDING"
+                    "direction": "DESCENDING"
                 }
             ],
             "endAt": {
@@ -553,11 +623,33 @@ def test__data_query_dynamic(cfs, query, result_size, error):  # noqa
             }
         },
         'batch_number',
-        '002',
-        False),
+        '004',
+        False,
+        2),
+    (
+        {
+            "orderBy": [
+                {
+                    "field": {"fieldPath": "batch_number"},
+                    "direction": "DESCENDING"
+                }
+            ],
+            "endAt": {
+                "before": False,
+                "values": [
+                    {
+                        "stringValue": "001",
+                    }
+                ]
+            }
+        },
+        'batch_number',
+        '001',
+        False,
+        5),
 ])
 @pytest.mark.integration
-def test__data_query_order(cfs, query, field, result, first):  # noqa
+def test__data_query_order(cfs, query, field, result, first, size):  # noqa
     base_query = {
         "where": {
             "filter": {
@@ -589,6 +681,7 @@ def test__data_query_order(cfs, query, field, result, first):  # noqa
         assert(_docs[0][field] == result)
     else:
         assert(_docs[-1][field] == result)
+    assert(len(_docs) == size)
 
 # @pytest.mark.integration
 # def test__data_(cfs):  # noqa

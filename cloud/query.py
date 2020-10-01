@@ -224,7 +224,7 @@ class Cursor:
         if not ascending:
             offset = offset * -1
         limit = self.cutoff(_filter, items, ascending)
-        if not limit and ascending:
+        if not isinstance(limit, int) and ascending:
             # no matching startAt value, no start -> None
             return []
         if not limit and not ascending:
@@ -235,7 +235,7 @@ class Cursor:
             0,
             limit + offset
         ])
-        LOG.debug(f'{orderBy}: @ {limit} + {offset} -> [{idx}], {ascending}')
+        LOG.debug(f'{orderBy} -> {self} : @ {limit} + {offset} -> [{idx}], {ascending}')
         if ascending:
             return items[idx:]
         else:
