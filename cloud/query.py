@@ -196,16 +196,6 @@ class Cursor:
     # if true: (use start_after & end_before)
     before: bool = False
 
-    # def build(self, base: firestore_v1.query.Query):
-    #     if not self.before:
-    #         _fn = base.end_at if self.position == 'end' else base.start_at
-    #     else:
-    #         _fn = base.end_before if self.position == 'end' else base.start_after
-
-    #     args = [ov.get_value() for ov in self.values]
-    #     LOG.debug(f'Cursor: {self.position} {args}')
-    #     return _fn(*args)
-
     def __make_match_filter(self, orderBy: List[Order]):
         values = [ov.get_value() for ov in self.values]
         db = [(o.field.fieldPath, values[x])
@@ -222,24 +212,34 @@ class Cursor:
 
         return match_filter
 
-    def cutoff(self, filter_, items, ascending=True):
+    def cutoff(self, filter_, items, ascending=True) -> int:
         for x, i in enumerate(items):
             if filter_(i):
                 return x
 
-    def prune(self, orderBy: List[Order], items):
+    def prune(self, orderBy: List[Order], items) -> List[Any]:
         _filter = self.__make_match_filter(orderBy)
         ascending = True if self.position == 'start' else False
         offset = 0 if not self.before else 1
         if not ascending:
             offset = offset * -1
         limit = self.cutoff(_filter, items, ascending)
-        idx = limit + offset
+        if not limit and ascending:
+            # no matching startAt value, no start -> None
+            return []
+        if not limit and not ascending:
+            # no matching endAt value, no end -> All
+            return items
+        # valid idx can't be < 1 in this case
+        idx = max([
+            0,
+            limit + offset
+        ])
         LOG.debug(f'{orderBy}: @ {limit} + {offset} -> [{idx}], {ascending}')
         if ascending:
             return items[idx:]
         else:
-            return items[:idx + 1]
+            return items[:idx + 1]  # +1 for slice convention
 
 
 @dataclass
