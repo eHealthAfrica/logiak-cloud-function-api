@@ -50,16 +50,20 @@ def as_json_response(obj) -> Response:
 
 def resolve(path, rtdb: fb_utils.RTDB) -> Response:
     path = _STRIP(path)
-    if path[0] == 'schema':
-        if len(path) == 2:
-            return as_json_response(_meta_list_schemas(rtdb, path[1]))
-        if len(path) == 3:
-            return as_json_response(_meta_schema(rtdb, path[1], path[2]))
-    elif path[0] == 'app':
-        if len(path) < 2:
-            return as_json_response(_meta_info(rtdb))
-        else:
-            return as_json_response(_meta_app(rtdb, path[1], path[2]))
+    try:
+        if path[0] == 'schema':
+            if len(path) == 2:
+                return as_json_response(_meta_list_schemas(rtdb, path[1]))
+            if len(path) == 3:
+                return as_json_response(_meta_schema(rtdb, path[1], path[2]))
+        elif path[0] == 'app':
+            if len(path) < 2:
+                return as_json_response(_meta_info(rtdb))
+            else:
+                return as_json_response(_meta_app(rtdb, path[1], path[2]))
+    except IndexError:
+        # could not parse args
+        pass
     return Response(f'Not Found @ {path}', 404)
 
 
