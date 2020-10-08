@@ -116,7 +116,8 @@ def test__session(MockAuthHandler, rtdb):  # noqa
     session_obj_ref = f'{MockAuthHandler.session_path}/{key}/{session_key}'
     expiry_ref = f'{session_obj_ref}/session_length'
     rtdb.reference(expiry_ref).set(0)
-    assert(MockAuthHandler.verify_session(TEST_USER, session_key) is False)
+    # user has access until TTL expires on auth cache (60s)
+    assert(MockAuthHandler.verify_session(TEST_USER, session_key) is True)
     MockAuthHandler._remove_expired_sessions(TEST_USER)
     assert(rtdb.reference(session_obj_ref).get() is None)
 
