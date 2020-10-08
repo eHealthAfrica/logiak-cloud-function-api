@@ -24,6 +24,8 @@ from time import time as epoch_now
 from typing import Dict
 from uuid import uuid4
 
+from cachetools import cached, TTLCache
+from cachetools.keys import hashkey
 from flask import Response
 import requests
 
@@ -48,6 +50,10 @@ def require_auth(auth: 'AuthHandler'):
             return fn(request, *args, **kwargs)
         return wrapper
     return handler
+
+
+def ignore_self(*args, **kwargs):
+    return hashkey(*args[1:], **kwargs)
 
 
 class AuthHandler(object):
@@ -117,6 +123,7 @@ class AuthHandler(object):
             'session_length': self.session_length
         }
 
+    @cached(cache=TTLCache(maxsize=32, ttl=60), key=ignore_self)
     def verify_session(self, user_id: str, token: str) -> bool:
         key = escape_email(user_id)
         user_token_path = f'{self.session_path}/{key}/{token}'

@@ -21,6 +21,9 @@ import logging
 import os
 from typing import List
 
+from cachetools import cached, LRUCache
+from cachetools.keys import hashkey
+
 from flask import Response
 
 from . import fb_utils
@@ -40,6 +43,11 @@ ROOT_PATH = os.environ.get('ROOT_PATH')
 _STRIP = path_stripper([ROOT_PATH, 'meta']) \
     if ROOT_PATH \
     else path_stripper(['meta', ''])
+
+
+# ignores arg[0] for the purpose of cache keying (in this case rtdb: fb_utils:RTDB)
+def key_ignore_db(*args, **kwargs):
+    return hashkey(*args[1:], **kwargs)
 
 
 def as_json_response(obj) -> Response:
@@ -69,6 +77,7 @@ def resolve(path, rtdb: fb_utils.RTDB) -> Response:
 
 # /meta/app [GET]
 # -> {app_id}/settings
+@cached(LRUCache(maxsize=1), key=key_ignore_db)
 def _meta_info(rtdb: fb_utils.RTDB) -> dict:
     uri = f'{APP_ID}/settings'
     return rtdb.reference(uri).get()
@@ -76,6 +85,7 @@ def _meta_info(rtdb: fb_utils.RTDB) -> dict:
 
 # /meta/app/{app_version}/{app_language} [GET]
 # -> apps/{app_alias}/{app_version(escaped)}/{language}/json
+@cached(LRUCache(maxsize=32), key=key_ignore_db)
 def _meta_app(rtdb: fb_utils.RTDB, app_version: str, app_language: str) -> dict:
     global APP_ALIAS
     if not APP_ALIAS:
@@ -89,6 +99,7 @@ def _meta_app(rtdb: fb_utils.RTDB, app_version: str, app_language: str) -> dict:
 
 # /meta/schema/{app_version} [GET]
 # -> objects/{app_id}/{app_version(escaped)}
+@cached(LRUCache(maxsize=32), key=key_ignore_db)
 def _meta_list_schemas(rtdb: fb_utils.RTDB, app_version: str) -> List:
     _version = escape_version(app_version)
     uri = f'objects/{APP_ID}/{_version}'
@@ -99,6 +110,7 @@ def _meta_list_schemas(rtdb: fb_utils.RTDB, app_version: str) -> List:
 
 # /meta/schema/{app_version}/{schema_name}` [GET]
 # -> objects/{app_id}/{app_version(escaped)}/{schema_name}
+@cached(LRUCache(maxsize=32), key=key_ignore_db)
 def _meta_schema(rtdb: fb_utils.RTDB, app_version: str, schema_name: str) -> dict:
     _version = escape_version(app_version)
     uri = f'objects/{APP_ID}/{_version}/{schema_name}'
