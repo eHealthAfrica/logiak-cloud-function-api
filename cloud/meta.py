@@ -23,10 +23,12 @@ from typing import List
 
 from cachetools import cached, LRUCache
 from cachetools.keys import hashkey
-
 from flask import Response
+import spavro.schema
+
 
 from . import fb_utils
+from .schema import strip_banned_from_schema, SchemaType
 from .utils import escape_version, path_stripper
 
 
@@ -111,9 +113,30 @@ def _meta_list_schemas(rtdb: fb_utils.RTDB, app_version: str) -> List:
 # /meta/schema/{app_version}/{schema_name}` [GET]
 # -> objects/{app_id}/{app_version(escaped)}/{schema_name}
 @cached(LRUCache(maxsize=32), key=key_ignore_db)
-def _meta_schema(rtdb: fb_utils.RTDB, app_version: str, schema_name: str) -> dict:
+def _meta_schema(
+    rtdb: fb_utils.RTDB,
+    app_version: str,
+    schema_name: str,
+    type: SchemaType = SchemaType.READ
+) -> dict:
     _version = escape_version(app_version)
     uri = f'objects/{APP_ID}/{_version}/{schema_name}'
     res = rtdb.reference(uri).get()
     if res:
-        return json.loads(res)
+        _schema = json.loads(res)
+        return strip_banned_from_schema(_schema, type)
+
+
+@cached(LRUCache(maxsize=32), key=key_ignore_db)
+def meta_schema_object(
+    rtdb: fb_utils.RTDB,
+    app_version: str,
+    schema_name: str,
+    type: SchemaType = SchemaType.READ
+) -> spavro.schema.Schema:
+    return spavro.schema.parse(
+        json.dumps(
+            _meta_schema(
+                rtdb, app_version, schema_name, type
+            ))
+    )

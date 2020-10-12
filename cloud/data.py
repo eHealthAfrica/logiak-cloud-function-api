@@ -34,6 +34,8 @@ from pydantic.error_wrappers import ValidationError as PydanticValidationError
 
 from . import fb_utils
 from .query import StructuredQuery
+from .schema import strip_banned_from_msg as clean_msg
+from .schema import SchemaType
 from .utils import chunk, escape_email, path_stripper
 
 from google.cloud import firestore_v1
@@ -107,7 +109,10 @@ def _get(
     uri = f'{APP_ID}/data/{_type}/{_id}'
     _doc = cfs.ref(full_path=uri).get()
     if _doc:
-        return json.dumps(_doc.to_dict(), sort_keys=True)
+        return json.dumps(
+            clean_msg(_doc.to_dict(), SchemaType.READ),
+            sort_keys=True
+        )
 
 
 def _validate_query(
@@ -166,7 +171,10 @@ def unordered_query(
         elif res and last:
             only = False
             yield ','
-            yield json.dumps(last.to_dict(), sort_keys=True)
+            yield json.dumps(
+                clean_msg(last.to_dict(), SchemaType.READ),
+                sort_keys=True
+            )
             yield ','
         elif res and not last:
             last = res[-1]
@@ -174,12 +182,18 @@ def unordered_query(
             if res:
                 only = False
                 yield ','.join(
-                    [json.dumps(doc.to_dict(), sort_keys=True) for doc in res[:len(res)]]
+                    [json.dumps(
+                        clean_msg(doc.to_dict(), SchemaType.READ),
+                        sort_keys=True
+                    ) for doc in res[:len(res)]]
                 )
     if last:
         if not only:
             yield ','
-        yield json.dumps(last.to_dict(), sort_keys=True)
+        yield json.dumps(
+            clean_msg(last.to_dict(), SchemaType.READ),
+            sort_keys=True
+        )
     yield ']'
 
 
@@ -193,7 +207,7 @@ def all_matching_docs(
         if structured_query:
             query_ = structured_query.filter(query_).stream()
         for doc in query_:
-            yield doc.to_dict()
+            yield clean_msg(doc.to_dict(), SchemaType.READ)
 
 
 def ordered_query(
