@@ -45,7 +45,8 @@ def require_auth(auth: 'AuthHandler'):
             reqs = ['Logiak-User-Id', 'Logiak-Session-Key']
             if (missing := missing_required(headers, reqs)):  # noqa
                 return Response(f'Missing required headers: {missing}', 400)
-            if not auth.verify_session(headers[reqs[0]], headers[reqs[1]]):
+            user_id, user_token = headers[reqs[0]], headers[reqs[1]]
+            if not auth.verify_session(user_id, user_token):
                 return Response('Bad Session', 401)
             return fn(request, *args, **kwargs)
         return wrapper

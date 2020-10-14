@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime, timezone
 from enum import Enum, auto
 import operator
 from typing import Dict
@@ -41,6 +42,12 @@ LOGIAK_INTERNAL_FIELDS = [
     'version_modified'
 ]
 
+LOGIAK_INTERNAL_REQUIRED_WRITE = [
+    'uuid'
+]
+
+BANNED_WRITE = list(set(LOGIAK_INTERNAL_FIELDS) - set(LOGIAK_INTERNAL_REQUIRED_WRITE))
+
 
 ALLOWED_INTERNALS = [
     'created',
@@ -52,7 +59,7 @@ ALLOWED_INTERNALS = [
     'version_modified'
 ]
 
-BANNED_INTERNALS = list(set(LOGIAK_INTERNAL_FIELDS) - set(ALLOWED_INTERNALS))
+BANNED_READ = list(set(LOGIAK_INTERNAL_FIELDS) - set(ALLOWED_INTERNALS))
 
 
 class SchemaType(Enum):
@@ -62,8 +69,8 @@ class SchemaType(Enum):
 
 
 _SCHEMA_REMOVE = {
-    SchemaType.READ: BANNED_INTERNALS,
-    SchemaType.WRITE: LOGIAK_INTERNAL_FIELDS,
+    SchemaType.READ: BANNED_READ,
+    SchemaType.WRITE: BANNED_WRITE,
     SchemaType.ALL: []
 }
 
@@ -109,3 +116,28 @@ def schema_stripper(_type: SchemaType):
         return [i for i in schema if not allow(i)]
 
     return _stripper
+
+
+def compliant_create_doc(update_doc: Dict, user_id: str):
+    # add fields to compliant update doc, to make compliant create doc
+    # but don't mutate it because update_doc is the failback if doc exists in CFS
+    doc = update_doc.copy()
+    doc['apk_version_created'] = doc['apk_version_modified']
+    doc['created'] = doc['modified']
+    doc['email'] = user_id
+    # user's firebase auth uuid
+    doc['firebase_uuid'] = ''
+    doc['group_uuid'] = ''
+    doc['managed_uuid'] = ''
+    doc['version_created'] = doc['version_modified']
+    return doc
+
+
+def compliant_update_doc(doc: Dict, version: str):
+    # add internal fields to create compliant update doc
+    doc['apk_version_modified'] = doc.get('apk_version_modified') or ''
+    doc['latitude'] = doc.get('latitude') or ''
+    doc['longitude'] = doc.get('longitude') or ''
+    doc['modified'] = int(round(datetime.now(timezone.utc).timestamp() * 1000))
+    doc['version_modified'] = version
+    return doc

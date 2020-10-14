@@ -25,7 +25,7 @@ import pytest
 
 from pydantic.error_wrappers import ValidationError as PydanticValidationError
 
-from test.app.cloud import meta, data, auth
+from test.app.cloud import meta, data, auth, schema
 from test.app.cloud.query import StructuredQuery
 
 from test.app.cloud.auth import require_auth
@@ -683,6 +683,25 @@ def test__data_query_order(cfs, query, field, result, first, size):  # noqa
     else:
         assert(_docs[-1][field] == result)
     assert(len(_docs) == size)
+
+
+@pytest.mark.integration
+def test__data_validate_for_write(cfs, rtdb):  # noqa
+    all_gen = data._query(
+        cfs,
+        TEST_USER,
+        TEST_OBJECT_TYPE,
+        None)
+
+    all_gen = json.loads(''.join(all_gen))
+    docs = [
+        schema.strip_banned_from_msg(msg, schema.SchemaType.WRITE) for msg in all_gen
+    ]
+
+    assert(
+        data.validate_for_write(rtdb, list(docs), TEST_APP_VERSION, TEST_OBJECT_TYPE) is not None
+    )
+
 
 # @pytest.mark.integration
 # def test__data_(cfs):  # noqa

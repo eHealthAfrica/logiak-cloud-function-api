@@ -21,7 +21,7 @@ import logging
 import os
 from typing import List
 
-from cachetools import cached, LRUCache
+from cachetools import cached, LRUCache, TTLCache
 from cachetools.keys import hashkey
 from flask import Response
 import spavro.schema
@@ -79,7 +79,7 @@ def resolve(path, rtdb: fb_utils.RTDB) -> Response:
 
 # /meta/app [GET]
 # -> {app_id}/settings
-@cached(LRUCache(maxsize=1), key=key_ignore_db)
+@cached(cache=TTLCache(maxsize=1, ttl=300), key=key_ignore_db)
 def _meta_info(rtdb: fb_utils.RTDB) -> dict:
     uri = f'{APP_ID}/settings'
     return rtdb.reference(uri).get()

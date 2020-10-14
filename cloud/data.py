@@ -22,20 +22,23 @@
 
 # from flask import jsonify, make_response, Response
 
-from spavro.schema import parse
-
 import json
 import logging
 import os
-from typing import Iterator, List, Generator
+from typing import (Any, Dict, Generator, Iterator, List, Union)
+from uuid import uuid4
 
 from flask import Response
 from pydantic.error_wrappers import ValidationError as PydanticValidationError
+import spavro.io
+
+from aether.python.avro import tools as avro_tools
 
 from . import fb_utils
 from .query import StructuredQuery
+from .meta import meta_schema_object, _meta_info
 from .schema import strip_banned_from_msg as clean_msg
-from .schema import SchemaType
+from .schema import compliant_create_doc, compliant_update_doc, SchemaType
 from .utils import chunk, escape_email, path_stripper
 
 from google.cloud import firestore_v1
@@ -57,7 +60,13 @@ _STRIP = path_stripper([ROOT_PATH, 'data']) \
     else path_stripper(['data', ''])
 
 
-def resolve(user_id, path: List, cfs: fb_utils.Firestore, data=None) -> Response:
+def resolve(
+    user_id,
+    path: List,
+    cfs: fb_utils.Firestore,
+    rtdb: fb_utils.RTDB,
+    data: Any = None
+) -> Response:
     path = _STRIP(path)
     try:
         _type = path[0]
@@ -78,7 +87,18 @@ def resolve(user_id, path: List, cfs: fb_utils.Firestore, data=None) -> Response
             except (PydanticValidationError, FailedPrecondition) as pvr:
                 return Response(f'Invalid Query: {pvr}', 400, mimetype='text/plain')
         elif path[1] == 'create':
-            return Response('Not implemented', 501)
+            try:
+                _type = path[0]
+                res = write_docs(
+                    rtdb,
+                    cfs,
+                    data,
+                    _type,
+                    user_id
+                )
+                return Response(res, 201)
+            except Exception as err:
+                return Response(str(err), 400)
     except IndexError:
         pass
     return Response(f'Not Found @ {path}', 404)
@@ -222,7 +242,67 @@ def ordered_query(
 
 # write
 
-def logiak_requires(user_name, doc):
+
+def validate_for_write(
+    rtdb: fb_utils.RTDB,
+    docs: List[Dict],
+    version,
+    schema_name
+) -> List[Dict]:
+
+    write_schema = meta_schema_object(rtdb, version, schema_name, SchemaType.WRITE)
+    errors = []
+    payload = []
+    for doc in docs:
+        # add uuid if not present
+        doc['uuid'] = doc.get('uuid') or str(uuid4())
+        if not spavro.io.validate(write_schema, doc):
+            validator = avro_tools.AvroValidator(
+                schema=write_schema,
+                datum=doc
+            )
+            if validator.errors:
+                errors.append(validator.errors)
+        if not errors:  # don't bother building the list if we're going to raise
+            payload.append(doc)
+    if errors:
+        raise RuntimeError(f'Schema Validation (v:{version}) Failed: {errors}')
+    return payload
+
+
+def write_docs(
+    rtdb: fb_utils.RTDB,
+    cfs: fb_utils.Firestore,
+    data: Union[List, Dict],
+    schema_name: str,
+    user_id
+) -> bool:
+    info = _meta_info(rtdb)
+    version = info.get('defaultVersion')
+    if not isinstance(data, list):
+        data = [data]
+    payload = validate_for_write(rtdb, data, version, schema_name)
+    full_schema = meta_schema_object(rtdb, version, schema_name, SchemaType.ALL)
+    for count, doc in enumerate(payload):
+        update_doc = compliant_update_doc(doc, version)
+        create_doc = compliant_create_doc(update_doc, user_id)
+        if not spavro.io.validate(full_schema, create_doc):
+            raise RuntimeError('Unexpected validation error after adding system fields.')
+        # actually write make the doc
+    return f'Created {count} documents'
+
+
+def write_doc(
+    rtdb: fb_utils.RTDB,
+    cfs: fb_utils.Firestore,
+    data: Union[List, Dict],
+    schema_name: str
+):
+    pass
+    # info = _meta_info(rtdb)
+    # try to create first, if it fails, update
+
+# def logiak_requires(user_name, doc):
     '''
     apk_version_created
     "0.0.127+92"
