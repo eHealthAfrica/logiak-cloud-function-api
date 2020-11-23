@@ -18,14 +18,31 @@
 
 from datetime import datetime, timezone
 from enum import Enum, auto
+import json
 import operator
-from typing import Dict
+from typing import Callable, Dict
 
 from cachetools import cached, LRUCache
 from cachetools.keys import hashkey
+from spavro.schema import SchemaParseException
 
 from . import fb_utils
 
+AVRO_TYPES = {  # from string
+    'boolean': bool,
+    'int': int,
+    'long': int,
+    'float': float,
+    'double': float,
+    'bytes': lambda x: b'x',
+    'string': str,
+    'record': lambda x: json.loads(x),
+    'enum': str,
+    'array': lambda x: json.loads(x),
+    'fixed': str,
+    'object': lambda x: json.loads(x),
+    'array:string': lambda x: json.loads(x)
+}
 
 LOGIAK_INTERNAL_FIELDS = [
     'apk_version_created',
@@ -84,9 +101,9 @@ _SCHEMA_REMOVE = {
 
 
 def strip_banned_from_msg(rtdb: fb_utils.RTDB, msg: Dict, schema_name: str, type: SchemaType):
-    # cast_ = schema_caster(rtdb, schema_name, msg.get('version_modified'))
+    cast_ = schema_caster(rtdb, schema_name, msg.get('version_modified'))
     filter_ = msg_stripper(type)
-    return filter_(msg)
+    return cast_(filter_(msg))
 
 
 def strip_banned_from_schema(schema: Dict, type: SchemaType):
@@ -95,12 +112,29 @@ def strip_banned_from_schema(schema: Dict, type: SchemaType):
     return schema
 
 
+# not recursive so doesn't work on nested schemas, but neither does logiak
 @cached(LRUCache(maxsize=100), key=key_ignore_db)
-def schema_caster(rtdb: fb_utils.RTDB, schema_name: str, version: str):
-    from .meta import meta_schema_object
-    schema = meta_schema_object(rtdb, version, schema_name, SchemaType.ALL)
-    print(schema)
-    return
+def schema_caster(rtdb: fb_utils.RTDB, schema_name: str, version: str) -> Callable[[Dict], Dict]:
+    # have to import here to avoid circular reference in meta
+    from .meta import _meta_schema, _meta_info
+    default_version = version
+    if not (schema := _meta_schema(rtdb, default_version, schema_name, SchemaType.ALL)):
+        default_version = _meta_info(rtdb).get('defaultVersion')
+        schema = _meta_schema(rtdb, default_version, schema_name, SchemaType.ALL)
+    if not schema:
+        raise RuntimeError(
+            f'No schema found for {schema_name} on {version} or default: {default_version}')
+    trans = {}
+    fields = [field_remove_optional(f) for f in schema['fields']]
+    for field in fields:
+        type_ = field['type'] if len(field['type']) > 1 else field['type'][-1]
+        trans[field['name']] = AVRO_TYPES.get(type_, 'string')
+
+    def cast(msg: Dict) -> Dict:
+        nonlocal trans
+        return {k: trans[k](v) for k, v in msg.items()}
+
+    return cast
 
 
 @cached(LRUCache(maxsize=3), key=key_ignore_db)

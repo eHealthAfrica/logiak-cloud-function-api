@@ -134,9 +134,9 @@ def meta_schema_object(
     schema_name: str,
     type: SchemaType = SchemaType.READ
 ) -> spavro.schema.Schema:
-    return spavro.schema.parse(
-        json.dumps(
-            _meta_schema(
-                rtdb, app_version, schema_name, type
-            ))
-    )
+    meta_ = json.dumps(
+        _meta_schema(
+            rtdb, app_version, schema_name, type
+        ))
+    if meta_:
+        return spavro.schema.parse(meta_)
