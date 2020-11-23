@@ -22,6 +22,9 @@ import operator
 from typing import Dict
 
 from cachetools import cached, LRUCache
+from cachetools.keys import hashkey
+
+from . import fb_utils
 
 
 LOGIAK_INTERNAL_FIELDS = [
@@ -62,6 +65,11 @@ ALLOWED_INTERNALS = [
 BANNED_READ = list(set(LOGIAK_INTERNAL_FIELDS) - set(ALLOWED_INTERNALS))
 
 
+# ignores arg[0] for the purpose of cache keying (in this case rtdb: fb_utils:RTDB)
+def key_ignore_db(*args, **kwargs):
+    return hashkey(*args[1:], **kwargs)
+
+
 class SchemaType(Enum):
     READ = auto()
     WRITE = auto()
@@ -75,7 +83,8 @@ _SCHEMA_REMOVE = {
 }
 
 
-def strip_banned_from_msg(msg: Dict, type: SchemaType):
+def strip_banned_from_msg(rtdb: fb_utils.RTDB, msg: Dict, schema_name: str, type: SchemaType):
+    # cast_ = schema_caster(rtdb, schema_name, msg.get('version_modified'))
     filter_ = msg_stripper(type)
     return filter_(msg)
 
@@ -86,7 +95,15 @@ def strip_banned_from_schema(schema: Dict, type: SchemaType):
     return schema
 
 
-@cached(LRUCache(maxsize=3))
+@cached(LRUCache(maxsize=100), key=key_ignore_db)
+def schema_caster(rtdb: fb_utils.RTDB, schema_name: str, version: str):
+    from .meta import meta_schema_object
+    schema = meta_schema_object(rtdb, version, schema_name, SchemaType.ALL)
+    print(schema)
+    return
+
+
+@cached(LRUCache(maxsize=3), key=key_ignore_db)
 def msg_stripper(_type: SchemaType):
     list_ = _SCHEMA_REMOVE[_type]
 
@@ -113,9 +130,31 @@ def schema_stripper(_type: SchemaType):
     allow = schema_filter(_type)
 
     def _stripper(schema):
-        return [i for i in schema if not allow(i)]
+        return [i for i in schema if allow(i)]
 
     return _stripper
+
+
+def strict_schema(schema: Dict):
+    '''
+    If a new document is to be created, it __must__ have the logiak fields filled
+    even if their value is "" so we make a strict schema in which null is not in the union.
+    '''
+    schema['fields'] = [
+        field_remove_optional(f)
+        if f['name'] in LOGIAK_INTERNAL_FIELDS
+        else f
+        for f in schema['fields']
+    ]
+    return schema
+
+
+def field_remove_optional(field: Dict):
+    if not isinstance(field.get('type'), list):
+        return field
+    field['type'].remove('null')
+    field['type'] = field['type'] if len(field['type']) > 1 else field['type'][-1]
+    return field
 
 
 def compliant_create_doc(update_doc: Dict, user_id: str):

@@ -21,7 +21,7 @@
 import pytest
 from pydantic.error_wrappers import ValidationError
 
-from test.app.cloud import utils, query
+from test.app.cloud import utils, query, schema
 
 
 @pytest.mark.unit
@@ -139,3 +139,52 @@ def test__parse_query_json(body, valid):
     else:
         _q = query.StructuredQuery.parse_raw(body)
         assert(_q.dict())
+
+
+@pytest.mark.unit
+def test__field_remove_optional():
+    a = {
+        'name': 'a',
+        'type': [
+            'null',
+            'string'
+        ]
+    }
+    b = {
+        'name': 'a',
+        'type': 'string'
+    }
+    c = {
+        'name': 'a',
+        'type': [
+            'null',
+            'string',
+            'int'
+        ]
+    }
+    d = {
+        'name': 'geometry',
+        'type': [
+            'null',
+            {
+                'name': 'geometry',
+                'type': 'record',
+                'fields': [
+                    {
+                        'name': 'latitude',
+                        'type': [
+                            'null',
+                            'float'
+                        ],
+                        'namespace': 'MySurvey.geometry'
+                    }
+                ]
+            }
+        ]
+    }
+    assert(schema.field_remove_optional(a)['type'] == 'string')
+    assert(schema.field_remove_optional(b)['type'] == 'string')
+    res_c = schema.field_remove_optional(c)
+    assert(isinstance(res_c['type'], list))
+    assert('null' not in res_c['type'])
+    assert(isinstance(schema.field_remove_optional(d)['type'], dict))

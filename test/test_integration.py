@@ -246,13 +246,14 @@ def test__data_eligible_doc(cfs):  # noqa
 
 
 @pytest.mark.integration
-def test__data_get_single_doc(cfs):  # noqa
+def test__data_get_single_doc(rtdb, cfs):  # noqa
     _ids = data._eligible_docs(
         cfs,
         TEST_USER,
         TEST_OBJECT_TYPE)
     _id = _ids[0]
     _doc = data._get(
+        rtdb,
         cfs,
         TEST_USER,
         TEST_OBJECT_TYPE,
@@ -262,13 +263,14 @@ def test__data_get_single_doc(cfs):  # noqa
 
 
 @pytest.mark.integration
-def test__data_dont_get_bad_doc(cfs):  # noqa
+def test__data_dont_get_bad_doc(rtdb, cfs):  # noqa
     _ids = data._eligible_docs(
         cfs,
         TEST_USER,
         TEST_OBJECT_TYPE)
     _id = _ids[0]
     _doc = data._get(
+        rtdb,
         cfs,
         'bad-user',
         TEST_OBJECT_TYPE,
@@ -277,8 +279,9 @@ def test__data_dont_get_bad_doc(cfs):  # noqa
 
 
 @pytest.mark.integration
-def test__data_query_no_filter(cfs):  # noqa
+def test__data_query_no_filter(rtdb, cfs):  # noqa
     _gen = data._query(
+        rtdb,
         cfs,
         TEST_USER,
         TEST_OBJECT_TYPE,
@@ -297,8 +300,9 @@ def test__data_query_no_filter(cfs):  # noqa
 
 
 @pytest.mark.integration
-def test__data_query_no_matches(cfs):  # noqa
+def test__data_query_no_matches(rtdb, cfs):  # noqa
     _gen = data._query(
+        rtdb,
         cfs,
         'bad-user',
         TEST_OBJECT_TYPE,
@@ -438,22 +442,21 @@ def test__data_query_no_matches(cfs):  # noqa
         True)
 ])
 @pytest.mark.integration
-def test__data_query_dynamic(cfs, query, result_size, error):  # noqa
+def test__data_query_dynamic(rtdb, cfs, query, result_size, error):  # noqa
     if error:
         with pytest.raises(PydanticValidationError):
             query = StructuredQuery(**query)
     else:
         query = StructuredQuery(**query)
         _gen = data._query(
+            rtdb,
             cfs,
             TEST_USER,
             TEST_OBJECT_TYPE,
             query)
         # read it as Flask will report it
         res = ''.join(_gen)
-        LOG.debug(res)
         _docs = json.loads(res)
-        LOG.debug(json.dumps(_docs, indent=2))
         assert(len(_docs) == result_size)
 
 
@@ -650,7 +653,7 @@ def test__data_query_dynamic(cfs, query, result_size, error):  # noqa
         5),
 ])
 @pytest.mark.integration
-def test__data_query_order(cfs, query, field, result, first, size):  # noqa
+def test__data_query_order(rtdb, cfs, query, field, result, first, size):  # noqa
     base_query = {
         "where": {
             "filter": {
@@ -669,6 +672,7 @@ def test__data_query_order(cfs, query, field, result, first, size):  # noqa
     query = dict(**query, **base_query)
     query = StructuredQuery(**query)
     _gen = data._query(
+        rtdb,
         cfs,
         TEST_USER,
         TEST_OBJECT_TYPE,
@@ -676,7 +680,6 @@ def test__data_query_order(cfs, query, field, result, first, size):  # noqa
     # read it as Flask will report it
     res = ''.join(_gen)
     _docs = json.loads(res)
-    LOG.debug(json.dumps(_docs, indent=2))
     # "If you're not first, you're last" -- Ricky Bobby
     if first:
         assert(_docs[0][field] == result)
@@ -688,6 +691,7 @@ def test__data_query_order(cfs, query, field, result, first, size):  # noqa
 @pytest.mark.integration
 def test__data_validate_for_write(cfs, rtdb):  # noqa
     all_gen = data._query(
+        rtdb,
         cfs,
         TEST_USER,
         TEST_OBJECT_TYPE,
@@ -695,7 +699,8 @@ def test__data_validate_for_write(cfs, rtdb):  # noqa
 
     all_gen = json.loads(''.join(all_gen))
     docs = [
-        schema.strip_banned_from_msg(msg, schema.SchemaType.WRITE) for msg in all_gen
+        schema.strip_banned_from_msg(rtdb, msg, TEST_OBJECT_TYPE, schema.SchemaType.WRITE)
+        for msg in all_gen
     ]
 
     assert(

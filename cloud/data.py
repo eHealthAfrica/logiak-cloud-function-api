@@ -72,7 +72,7 @@ def resolve(
         _type = path[0]
         if path[1] == 'read':
             _id = path[2]
-            if doc := _get(cfs, user_id, _type, _id):
+            if doc := _get(rtdb, cfs, user_id, _type, _id):
                 return Response(doc, 200, mimetype='application/json')
         elif path[1] == 'query':
             try:
@@ -80,9 +80,9 @@ def resolve(
                     # validate outside of the generator
                     data = StructuredQuery(**data)
                     _validate_query(cfs, _type, data)
-                    _response_generator = _query(cfs, user_id, _type, data)
+                    _response_generator = _query(rtdb, cfs, user_id, _type, data)
                 else:
-                    _response_generator = _query(cfs, user_id, _type, None)
+                    _response_generator = _query(rtdb, cfs, user_id, _type, None)
                 return Response(_response_generator, 200, mimetype='application/json')
             except (PydanticValidationError, FailedPrecondition) as pvr:
                 return Response(f'Invalid Query: {pvr}', 400, mimetype='text/plain')
@@ -119,6 +119,7 @@ def _eligible_docs(cfs: fb_utils.Firestore, user_id: str, _type: str):
 
 
 def _get(
+    rtdb: fb_utils.RTDB,
     cfs: fb_utils.Firestore,
     user_id: str,
     _type: str,
@@ -130,7 +131,7 @@ def _get(
     _doc = cfs.ref(full_path=uri).get()
     if _doc:
         return json.dumps(
-            clean_msg(_doc.to_dict(), SchemaType.READ),
+            clean_msg(rtdb, _doc.to_dict(), _type, SchemaType.READ),
             sort_keys=True
         )
 
@@ -147,6 +148,7 @@ def _validate_query(
 
 
 def _query(
+    rtdb: fb_utils.RTDB,
     cfs: fb_utils.Firestore,
     user_id: str,
     _type: str,
@@ -158,12 +160,14 @@ def _query(
     ref = cfs.ref(path=uri)
     # if the query is not ordered then we can stream it directly
     if not structured_query or not structured_query.is_ordered():
-        yield from unordered_query(ref, structured_query, _ids)
+        yield from unordered_query(_type, rtdb, ref, structured_query, _ids)
     else:
-        yield from ordered_query(ref, structured_query, _ids)
+        yield from ordered_query(_type, rtdb, ref, structured_query, _ids)
 
 
 def unordered_query(
+    type_: str,
+    rtdb: fb_utils.RTDB,
     query_: firestore_v1.query.Query,
     structured_query: StructuredQuery,
     _ids: Iterator[str]
@@ -192,7 +196,7 @@ def unordered_query(
             only = False
             yield ','
             yield json.dumps(
-                clean_msg(last.to_dict(), SchemaType.READ),
+                clean_msg(rtdb, last.to_dict(), type_, SchemaType.READ),
                 sort_keys=True
             )
             yield ','
@@ -203,7 +207,7 @@ def unordered_query(
                 only = False
                 yield ','.join(
                     [json.dumps(
-                        clean_msg(doc.to_dict(), SchemaType.READ),
+                        clean_msg(rtdb, doc.to_dict(), type_, SchemaType.READ),
                         sort_keys=True
                     ) for doc in res[:len(res)]]
                 )
@@ -211,13 +215,15 @@ def unordered_query(
         if not only:
             yield ','
         yield json.dumps(
-            clean_msg(last.to_dict(), SchemaType.READ),
+            clean_msg(rtdb, last.to_dict(), type_, SchemaType.READ),
             sort_keys=True
         )
     yield ']'
 
 
 def all_matching_docs(
+    type_: str,
+    rtdb: fb_utils.RTDB,
     query_: firestore_v1.query.Query,
     structured_query: StructuredQuery,
     _ids: Iterator[str]
@@ -227,15 +233,17 @@ def all_matching_docs(
         if structured_query:
             query_ = structured_query.filter(query_).stream()
         for doc in query_:
-            yield clean_msg(doc.to_dict(), SchemaType.READ)
+            yield clean_msg(rtdb, doc.to_dict(), type_, SchemaType.READ)
 
 
 def ordered_query(
+    type_: str,
+    rtdb: fb_utils.RTDB,
     query_: firestore_v1.query.Query,
     structured_query: StructuredQuery,
     _ids: Iterator[str]
 ):
-    docs = list(all_matching_docs(query_, structured_query, _ids))
+    docs = list(all_matching_docs(type_, rtdb, query_, structured_query, _ids))
     docs = structured_query.order(docs)
     yield json.dumps(docs, sort_keys=True)
 
@@ -250,6 +258,7 @@ def validate_for_write(
     schema_name
 ) -> List[Dict]:
 
+    LOG.debug(f'validate {schema_name}')
     write_schema = meta_schema_object(rtdb, version, schema_name, SchemaType.WRITE)
     errors = []
     payload = []
@@ -257,14 +266,20 @@ def validate_for_write(
         # add uuid if not present
         doc['uuid'] = doc.get('uuid') or str(uuid4())
         if not spavro.io.validate(write_schema, doc):
+            LOG.error('schema failed')
             validator = avro_tools.AvroValidator(
                 schema=write_schema,
                 datum=doc
             )
             if validator.errors:
+                LOG.debug(validator.errors)
                 errors.append(validator.errors)
+        else:
+            LOG.debug(json.dumps(doc, indent=2))
+            LOG.debug('msg ok')
         if not errors:  # don't bother building the list if we're going to raise
             payload.append(doc)
+
     if errors:
         raise RuntimeError(f'Schema Validation (v:{version}) Failed: {errors}')
     return payload
@@ -287,7 +302,12 @@ def write_docs(
         update_doc = compliant_update_doc(doc, version)
         create_doc = compliant_create_doc(update_doc, user_id)
         if not spavro.io.validate(full_schema, create_doc):
-            raise RuntimeError('Unexpected validation error after adding system fields.')
+            validator = avro_tools.AvroValidator(
+                schema=full_schema,
+                datum=create_doc
+            )
+            # collect_failures, return 207 if any accepted
+            raise RuntimeError(f'Unexpected validation error: {validator.errors}')
         # actually write make the doc
     return f'Created {count} documents'
 
