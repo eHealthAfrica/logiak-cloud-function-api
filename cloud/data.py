@@ -257,13 +257,10 @@ def validate_for_write(
     version,
     schema_name
 ) -> List[Dict]:
-
-    LOG.debug(f'validate {schema_name}')
     write_schema = meta_schema_object(rtdb, version, schema_name, SchemaType.WRITE)
     errors = []
     payload = []
     for doc in docs:
-        # add uuid if not present
         doc['uuid'] = doc.get('uuid') or str(uuid4())
         if not spavro.io.validate(write_schema, doc):
             LOG.error('schema failed')
@@ -272,11 +269,7 @@ def validate_for_write(
                 datum=doc
             )
             if validator.errors:
-                LOG.debug(validator.errors)
                 errors.append(validator.errors)
-        else:
-            LOG.debug(json.dumps(doc, indent=2))
-            LOG.debug('msg ok')
         if not errors:  # don't bother building the list if we're going to raise
             payload.append(doc)
 
@@ -298,6 +291,7 @@ def write_docs(
         data = [data]
     payload = validate_for_write(rtdb, data, version, schema_name)
     full_schema = meta_schema_object(rtdb, version, schema_name, SchemaType.ALL)
+    errors = []
     for count, doc in enumerate(payload):
         update_doc = compliant_update_doc(doc, version)
         create_doc = compliant_create_doc(update_doc, user_id)
@@ -307,8 +301,11 @@ def write_docs(
                 datum=create_doc
             )
             # collect_failures, return 207 if any accepted
-            raise RuntimeError(f'Unexpected validation error: {validator.errors}')
+            errors.append(f'{create_doc["uuid"]} failed with {validator.errors}')
         # actually write make the doc
+    if errors:
+        LOG.error(f'{len(errors)} of {count + 1} failed :-(')
+        raise RuntimeError(errors)
     return f'Created {count} documents'
 
 

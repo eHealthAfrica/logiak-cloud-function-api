@@ -708,6 +708,25 @@ def test__data_validate_for_write(cfs, rtdb):  # noqa
     )
 
 
+@pytest.mark.integration
+def test__data_write_docs(cfs, rtdb):  # noqa
+    all_gen = data._query(
+        rtdb,
+        cfs,
+        TEST_USER,
+        TEST_OBJECT_TYPE,
+        None)
+
+    all_gen = json.loads(''.join(all_gen))
+    docs = [
+        schema.strip_banned_from_msg(rtdb, msg, TEST_OBJECT_TYPE, schema.SchemaType.WRITE)
+        for msg in all_gen
+    ]
+
+    assert(
+        data.write_docs(rtdb, cfs, list(docs), TEST_OBJECT_TYPE, TEST_USER) is not None
+    )
+
 # @pytest.mark.integration
 # def test__data_(cfs):  # noqa
 #     pass

@@ -117,13 +117,11 @@ def strip_banned_from_schema(schema: Dict, type: SchemaType):
 def schema_caster(rtdb: fb_utils.RTDB, schema_name: str, version: str) -> Callable[[Dict], Dict]:
     # have to import here to avoid circular reference in meta
     from .meta import _meta_schema, _meta_info
-    default_version = version
-    if not (schema := _meta_schema(rtdb, default_version, schema_name, SchemaType.ALL)):
+    if not (schema := _meta_schema(rtdb, version, schema_name, SchemaType.ALL)):
         default_version = _meta_info(rtdb).get('defaultVersion')
-        schema = _meta_schema(rtdb, default_version, schema_name, SchemaType.ALL)
-    if not schema:
-        raise RuntimeError(
-            f'No schema found for {schema_name} on {version} or default: {default_version}')
+        if not (schema := _meta_schema(rtdb, default_version, schema_name, SchemaType.ALL)):
+            raise RuntimeError(
+                f'No schema found for {schema_name} on {version} or default: {default_version}')
     trans = {}
     fields = [field_remove_optional(f) for f in schema['fields']]
     for field in fields:
@@ -135,6 +133,11 @@ def schema_caster(rtdb: fb_utils.RTDB, schema_name: str, version: str) -> Callab
         return {k: trans[k](v) for k, v in msg.items()}
 
     return cast
+
+
+# internally, everything in CFS for logiak is a string and cannot be null, must be ''
+def cast_values_to_string(msg: Dict):
+    return {k: str(v) if v is not None else '' for k, v in msg.items()}
 
 
 @cached(LRUCache(maxsize=3), key=key_ignore_db)
