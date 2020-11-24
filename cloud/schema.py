@@ -194,17 +194,24 @@ def field_remove_optional(field: Dict):
     return field
 
 
-def compliant_create_doc(update_doc: Dict, user_id: str):
+def compliant_create_doc(rtdb: fb_utils.RTDB, update_doc: Dict, user_id: str):
     # add fields to compliant update doc, to make compliant create doc
     # but don't mutate it because update_doc is the failback if doc exists in CFS
+    # avoid circular imports
+    from .meta import meta_user_init_info
+    user_info = meta_user_init_info(rtdb, user_id)
     doc = update_doc.copy()
     doc['apk_version_created'] = doc['apk_version_modified']
     doc['created'] = doc['modified']
     doc['email'] = user_id
+    # user's role uuid
+    doc['role_uuid'] = user_info.get('roleUuid') or ''
     # user's firebase auth uuid
-    doc['firebase_uuid'] = ''
-    doc['group_uuid'] = ''
-    doc['managed_uuid'] = ''
+    doc['firebase_uuid'] = user_info.get('firebaseUuid') or ''
+    # user's groupUuid
+    doc['group_uuid'] = user_info.get('groupUuid') or ''
+    # user's managedUuid
+    doc['managed_uuid'] = user_info.get('managedUuid') or ''
     doc['version_created'] = doc['version_modified']
     return doc
 

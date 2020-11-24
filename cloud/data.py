@@ -89,14 +89,14 @@ def resolve(
         elif path[1] == 'create':
             try:
                 _type = path[0]
-                res = write_docs(
+                # write docs is complex, so it returns a Response directly
+                return write_docs(
                     rtdb,
                     cfs,
                     data,
                     _type,
                     user_id
                 )
-                return Response(res, 201)
             except Exception as err:
                 return Response(str(err), 400)
     except IndexError:
@@ -284,7 +284,7 @@ def write_docs(
     data: Union[List, Dict],
     schema_name: str,
     user_id
-) -> bool:
+) -> Response:
     info = _meta_info(rtdb)
     version = info.get('defaultVersion')
     if not isinstance(data, list):
@@ -293,20 +293,31 @@ def write_docs(
     full_schema = meta_schema_object(rtdb, version, schema_name, SchemaType.ALL)
     errors = []
     for count, doc in enumerate(payload):
+        # create both versions of the doc, one with originator info, one without
+        # when we actually try to write, we try create, which is disallowed if the
+        # document exists, then failover to update
+        # we do both here to validate based on the full schema'd doc, not the update
+        # version
         update_doc = compliant_update_doc(doc, version)
-        create_doc = compliant_create_doc(update_doc, user_id)
+        create_doc = compliant_create_doc(rtdb, update_doc, user_id)
         if not spavro.io.validate(full_schema, create_doc):
             validator = avro_tools.AvroValidator(
                 schema=full_schema,
                 datum=create_doc
             )
-            # collect_failures, return 207 if any accepted
+            # collect_failures, return 207 if any accepted, 201 if all
+            LOG.debug(json.dumps(create_doc, indent=2))
             errors.append(f'{create_doc["uuid"]} failed with {validator.errors}')
+            continue
         # actually write make the doc
     if errors:
-        LOG.error(f'{len(errors)} of {count + 1} failed :-(')
-        raise RuntimeError(errors)
-    return f'Created {count} documents'
+        err_msg = f'{len(errors)} errors in {count + 1} submitted docs: {errors}'
+    if len(errors) >= count + 1:
+        return Response(err_msg, 400)
+    elif not errors:
+        return Response(f'Created {count + 1} docs.', 201)
+    else:
+        return Response(err_msg, 207)
 
 
 def write_doc(

@@ -46,6 +46,7 @@ from . import (  # noqa
 
 
 TEST_USER = 'aboubacar.douno@ehealthnigeria.org'
+TEST_USER_2 = 'zubair.isah@ehealthnigeria.org'
 TEST_APP_VERSION = '0.0.42'
 TEST_APP_LANG = 'en'
 TEST_OBJECT_TYPE = 'batch'
@@ -708,25 +709,49 @@ def test__data_validate_for_write(cfs, rtdb):  # noqa
     )
 
 
+@pytest.mark.parametrize('user,status_code,query', [
+    (
+        TEST_USER,
+        400,
+        None),  # all docs old schemas
+    (
+        TEST_USER_2,
+        207,
+        None),  # some docs old schemas
+    (
+        TEST_USER_2,
+        201,
+        {  # exclude all old schemas from set
+            "where": {
+                "filter": {
+                    "fieldFilter": {
+                        "field": {
+                            "fieldPath": "version_modified"
+                        },
+                        "op": "EQUAL",
+                        "value": {
+                            "stringValue": TEST_APP_VERSION
+                        }
+                    }
+                }
+            }
+        })
+])
 @pytest.mark.integration
-def test__data_write_docs(cfs, rtdb):  # noqa
+def test__data_write_docs__update_existing(cfs, rtdb, user, status_code, query):  # noqa
+    if query:
+        query = StructuredQuery(**query)
     all_gen = data._query(
         rtdb,
         cfs,
-        TEST_USER,
+        user,
         TEST_OBJECT_TYPE,
-        None)
+        query)
 
     all_gen = json.loads(''.join(all_gen))
     docs = [
         schema.strip_banned_from_msg(rtdb, msg, TEST_OBJECT_TYPE, schema.SchemaType.WRITE)
         for msg in all_gen
     ]
-
-    assert(
-        data.write_docs(rtdb, cfs, list(docs), TEST_OBJECT_TYPE, TEST_USER) is not None
-    )
-
-# @pytest.mark.integration
-# def test__data_(cfs):  # noqa
-#     pass
+    res = data.write_docs(rtdb, cfs, docs, TEST_OBJECT_TYPE, user)
+    assert(res.status_code == status_code)

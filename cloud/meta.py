@@ -29,7 +29,7 @@ import spavro.schema
 
 from . import fb_utils
 from .schema import strip_banned_from_schema, SchemaType
-from .utils import escape_version, path_stripper
+from .utils import escape_email, escape_version, path_stripper
 
 
 LOG = logging.getLogger('META')
@@ -140,3 +140,15 @@ def meta_schema_object(
         ))
     if meta_:
         return spavro.schema.parse(meta_)
+
+
+@cached(LRUCache(maxsize=128), key=key_ignore_db)
+def meta_user_init_info(
+    rtdb: fb_utils.RTDB,
+    email: str
+):
+    key = escape_email(email)
+    uri = f'{APP_ID}/inits/{key}'
+    if not (doc := rtdb.reference(uri).get()):
+        return {}
+    return doc
