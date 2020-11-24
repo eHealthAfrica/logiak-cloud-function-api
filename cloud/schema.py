@@ -16,17 +16,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from copy import deepcopy
 from datetime import datetime, timezone
 from enum import Enum, auto
 import json
+import logging
 import operator
-from typing import Callable, Dict
+from typing import Callable, Dict, List
 
 from cachetools import cached, LRUCache
 from cachetools.keys import hashkey
 from spavro.schema import SchemaParseException
 
 from . import fb_utils
+
+
+LOG = logging.getLogger('SCHEMA')
+LOG.setLevel(logging.DEBUG)
 
 AVRO_TYPES = {  # from string
     'boolean': bool,
@@ -123,6 +129,8 @@ def schema_caster(rtdb: fb_utils.RTDB, schema_name: str, version: str) -> Callab
             raise RuntimeError(
                 f'No schema found for {schema_name} on {version} or default: {default_version}')
     trans = {}
+    # if we don't deepcopy, we'll mutate the cached schema to always be strict
+    schema = deepcopy(schema)
     fields = [field_remove_optional(f) for f in schema['fields']]
     for field in fields:
         type_ = field['type'] if len(field['type']) > 1 else field['type'][-1]
@@ -172,6 +180,21 @@ def schema_stripper(_type: SchemaType):
     return _stripper
 
 
+@cached(LRUCache(maxsize=128), key=key_ignore_db)
+def schema_flag_extras(rtdb: fb_utils.RTDB, schema_name, schema_version) -> Callable:
+    from .meta import _meta_schema
+    schema = _meta_schema(rtdb, schema_version, schema_name, SchemaType.ALL)
+    allowed = [f.get('name') for f in schema['fields']]
+
+    def validate(msg) -> List:
+        if len(msg) < 2:  # only uuid present
+            return ['Empty document']
+        if any(extra_fields := [k for k in msg.keys() if k not in allowed]):
+            return [f'extra field: {k}' for k in extra_fields]
+        return []
+    return validate
+
+
 def strict_schema(schema: Dict):
     '''
     If a new document is to be created, it __must__ have the logiak fields filled
@@ -203,6 +226,7 @@ def compliant_create_doc(rtdb: fb_utils.RTDB, update_doc: Dict, user_id: str):
     doc = update_doc.copy()
     doc['apk_version_created'] = doc['apk_version_modified']
     doc['created'] = doc['modified']
+    doc['data_collector_email'] = user_id
     doc['email'] = user_id
     # user's role uuid
     doc['role_uuid'] = user_info.get('roleUuid') or ''
@@ -219,8 +243,8 @@ def compliant_create_doc(rtdb: fb_utils.RTDB, update_doc: Dict, user_id: str):
 def compliant_update_doc(doc: Dict, version: str):
     # add internal fields to create compliant update doc
     doc['apk_version_modified'] = doc.get('apk_version_modified') or ''
-    doc['latitude'] = doc.get('latitude') or ''
-    doc['longitude'] = doc.get('longitude') or ''
     doc['modified'] = int(round(datetime.now(timezone.utc).timestamp() * 1000))
     doc['version_modified'] = version
+    doc['latitude'] = doc.get('latitude')
+    doc['longitude'] = doc.get('longitude')
     return doc

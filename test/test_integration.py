@@ -29,6 +29,7 @@ from test.app.cloud import meta, data, auth, schema
 from test.app.cloud.query import StructuredQuery
 
 from test.app.cloud.auth import require_auth
+from test.app.cloud.schema import schema_caster
 from test.app.cloud.utils import escape_email
 
 from . import (  # noqa
@@ -712,11 +713,11 @@ def test__data_validate_for_write(cfs, rtdb):  # noqa
 @pytest.mark.parametrize('user,status_code,query', [
     (
         TEST_USER,
-        400,
+        201,
         None),  # all docs old schemas
     (
         TEST_USER_2,
-        207,
+        201,
         None),  # some docs old schemas
     (
         TEST_USER_2,
@@ -754,4 +755,80 @@ def test__data_write_docs__update_existing(cfs, rtdb, user, status_code, query):
         for msg in all_gen
     ]
     res = data.write_docs(rtdb, cfs, docs, TEST_OBJECT_TYPE, user)
-    assert(res.status_code == status_code)
+    assert(res.status_code == status_code), str(res.data)
+
+
+@pytest.mark.parametrize('user,status_code,docs', [
+    (
+        TEST_USER,
+        400,
+        '[{}]'
+    ),
+    (
+        TEST_USER_2,
+        400,
+        '''
+        [
+            {"bad": "doc"},
+            {
+            "allocation_id": "b622a63a-3c00-4d9e-ab72-423b80199d20",
+            "batch_id": "769a5218-98ec-4722-9fbf-dd9ad61a01dc",
+            "batch_number": "ac1237",
+            "date": "1599647081570",
+            "display_quantity": "652 Injectable",
+            "expiry_date": "1601420100000",
+            "initial_amount": "2000.0",
+            "item_id": "125",
+            "item_name": "Hepatitis E",
+            "manufacturer": "Kano vaccines",
+            "program": "Something",
+            "quantity": "900.0",
+            "vvm_status": "stage3"
+            }
+        ]
+        '''),
+    (
+        TEST_USER_2,
+        201,
+        '''
+        [
+          {
+            "allocation_id": "b622a63a-3c00-4d9e-ab72-423b80199d20",
+            "batch_id": "769a5218-98ec-4722-9fbf-dd9ad61a01dc",
+            "batch_number": "ac1234",
+            "date": "1599647081576",
+            "display_quantity": "650 Injectable",
+            "expiry_date": "1601420400000",
+            "initial_amount": "1000.0",
+            "item_id": "124",
+            "item_name": "Hepatitis B",
+            "manufacturer": "Kano vaccines",
+            "program": "",
+            "quantity": "650.0",
+            "vvm_status": "stage1"
+          },
+            {
+            "allocation_id": "b622a63a-3c00-4d9e-ab72-423b80199d20",
+            "batch_id": "769a5218-98ec-4722-9fbf-dd9ad61a01dc",
+            "batch_number": "ac1235",
+            "date": "1599647081570",
+            "display_quantity": "651 Injectable",
+            "expiry_date": "1601420100000",
+            "initial_amount": "2000.0",
+            "item_id": "125",
+            "item_name": "Hepatitis D",
+            "manufacturer": "Kano vaccines",
+            "program": "Something",
+            "quantity": "800.0",
+            "vvm_status": "stage2"
+            }
+          ]
+        ''')
+])
+@pytest.mark.integration
+def test__data_write_docs__create_new(cfs, rtdb, user, status_code, docs):  # noqa
+    TEST_MSG_CASTER = schema_caster(rtdb, TEST_OBJECT_TYPE, TEST_APP_VERSION)
+    docs = json.loads(docs)
+    docs = [TEST_MSG_CASTER(d) if 'bad' not in d else d for d in docs]
+    res = data.write_docs(rtdb, cfs, docs, TEST_OBJECT_TYPE, user)
+    assert(res.status_code == status_code), str(res.data)

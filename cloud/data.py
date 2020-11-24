@@ -36,13 +36,19 @@ from aether.python.avro import tools as avro_tools
 
 from . import fb_utils
 from .query import StructuredQuery
-from .meta import meta_schema_object, _meta_info
+from .meta import meta_schema_object, _meta_info, _meta_schema
 from .schema import strip_banned_from_msg as clean_msg
-from .schema import compliant_create_doc, compliant_update_doc, SchemaType
+from .schema import (
+    cast_values_to_string,
+    compliant_create_doc,
+    compliant_update_doc,
+    schema_flag_extras,
+    SchemaType
+)
 from .utils import chunk, escape_email, path_stripper
 
 from google.cloud import firestore_v1
-from google.api_core.exceptions import FailedPrecondition
+from google.api_core.exceptions import AlreadyExists, FailedPrecondition
 
 
 LOG = logging.getLogger('DATA')
@@ -260,10 +266,13 @@ def validate_for_write(
     write_schema = meta_schema_object(rtdb, version, schema_name, SchemaType.WRITE)
     errors = []
     payload = []
+    extra_fields_validator = schema_flag_extras(rtdb, schema_name, version)
     for doc in docs:
         doc['uuid'] = doc.get('uuid') or str(uuid4())
+        if extra_errors := extra_fields_validator(doc):
+            errors.extend(extra_errors)
+            continue
         if not spavro.io.validate(write_schema, doc):
-            LOG.error('schema failed')
             validator = avro_tools.AvroValidator(
                 schema=write_schema,
                 datum=doc
@@ -289,9 +298,13 @@ def write_docs(
     version = info.get('defaultVersion')
     if not isinstance(data, list):
         data = [data]
-    payload = validate_for_write(rtdb, data, version, schema_name)
+    try:
+        payload = validate_for_write(rtdb, data, version, schema_name)
+    except RuntimeError as err:
+        return Response(str(err), 400)
     full_schema = meta_schema_object(rtdb, version, schema_name, SchemaType.ALL)
-    errors = []
+    schema_errors = []
+    write_errors = []
     for count, doc in enumerate(payload):
         # create both versions of the doc, one with originator info, one without
         # when we actually try to write, we try create, which is disallowed if the
@@ -305,15 +318,22 @@ def write_docs(
                 schema=full_schema,
                 datum=create_doc
             )
-            # collect_failures, return 207 if any accepted, 201 if all
-            LOG.debug(json.dumps(create_doc, indent=2))
-            errors.append(f'{create_doc["uuid"]} failed with {validator.errors}')
-            continue
-        # actually write make the doc
+            # collect_failures, return 207 if any accepted, 201 if all, 400 if None
+            schema_errors.append(f'{create_doc["uuid"]} failed with {validator.errors}')
+        else:
+            try:
+                # actually write make the doc
+                write_doc(rtdb, cfs, create_doc, update_doc, schema_name)
+            except Exception as err:
+                write_errors.append(err)
+    errors = [*schema_errors, *write_errors]
     if errors:
         err_msg = f'{len(errors)} errors in {count + 1} submitted docs: {errors}'
     if len(errors) >= count + 1:
-        return Response(err_msg, 400)
+        if not schema_errors:
+            return Response(err_msg, 500)
+        else:
+            return Response(err_msg, 400)
     elif not errors:
         return Response(f'Created {count + 1} docs.', 201)
     else:
@@ -323,50 +343,20 @@ def write_docs(
 def write_doc(
     rtdb: fb_utils.RTDB,
     cfs: fb_utils.Firestore,
-    data: Union[List, Dict],
+    create_doc: Dict,
+    update_doc: Dict,
     schema_name: str
 ):
-    pass
-    # info = _meta_info(rtdb)
-    # try to create first, if it fails, update
-
-# def logiak_requires(user_name, doc):
-    '''
-    apk_version_created
-    "0.0.127+92"
-    apk_version_modified
-    "0.0.127+92"
-    created
-    "1599651061113"
-    data_collector_email
-    "mustapha.barda@ehealthnigeria.org"
-    email
-    "mustapha.barda@ehealthnigeria.org"
-    firebase_uuid
-    "1eJBkcPZDUQrjvBJ9FxOQ6M1c0r1"
-    group_uuid
-    "449351b4-bd5c-4358-bba8-8b8d410819c2"
-    latitude
-    "12.0199774"
-    longitude
-    "8.5637202"
-    managed_uuid
-    "cfc3278c-f808-4bcf-9f66-d91235ac3e2b"
-    modified
-    "1599651061112"
-    program
-    ""
-    quantity
-    "1.0"
-    role_uuid
-    "d6b81831-4bb2-4712-bcaa-e522c456a270"
-    slot
-    # null
-    uuid
-    # "14337a2a-f5b9-4ed7-943b-e4ccccfaf907"
-    version_created
-    # "0.0.42"
-    version_modified
-    # "0.0.42"
-    '''
-    pass
+    _id = create_doc['uuid']
+    # in Logiak everything is a string internally, not sure why, but there it is
+    uri = f'{APP_ID}/data/{schema_name}/{_id}'
+    ref = cfs.ref(full_path=uri)
+    try:
+        # try to create first, if it fails, update
+        create_doc = cast_values_to_string(create_doc)
+        res = ref.create(create_doc)
+        return res
+    except AlreadyExists:
+        update_doc = cast_values_to_string(update_doc)
+        res = ref.update(update_doc)
+        return res
