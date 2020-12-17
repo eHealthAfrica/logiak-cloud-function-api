@@ -140,4 +140,4 @@ def handle_data(request):
     user_id = request.headers.get('Logiak-User-Id')
     path = request.path.split('/')
     data_ = request.get_json()
-    return data.resolve(user_id, path, CFS, data_)
+    return data.resolve(user_id, path, CFS, RTDB, data_)

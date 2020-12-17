@@ -22,22 +22,33 @@
 
 # from flask import jsonify, make_response, Response
 
-from spavro.schema import parse
-
 import json
 import logging
 import os
-from typing import Iterator, List, Generator
+from typing import (Any, Dict, Generator, Iterator, List, Union)
+from uuid import uuid4
 
 from flask import Response
 from pydantic.error_wrappers import ValidationError as PydanticValidationError
+import spavro.io
+
+from aether.python.avro import tools as avro_tools
 
 from . import fb_utils
 from .query import StructuredQuery
+from .meta import meta_schema_object, _meta_info, _meta_schema
+from .schema import strip_banned_from_msg as clean_msg
+from .schema import (
+    cast_values_to_string,
+    compliant_create_doc,
+    compliant_update_doc,
+    schema_flag_extras,
+    SchemaType
+)
 from .utils import chunk, escape_email, path_stripper
 
 from google.cloud import firestore_v1
-from google.api_core.exceptions import FailedPrecondition
+from google.api_core.exceptions import AlreadyExists, FailedPrecondition
 
 
 LOG = logging.getLogger('DATA')
@@ -55,13 +66,19 @@ _STRIP = path_stripper([ROOT_PATH, 'data']) \
     else path_stripper(['data', ''])
 
 
-def resolve(user_id, path: List, cfs: fb_utils.Firestore, data=None) -> Response:
+def resolve(
+    user_id,
+    path: List,
+    cfs: fb_utils.Firestore,
+    rtdb: fb_utils.RTDB,
+    data: Any = None
+) -> Response:
     path = _STRIP(path)
     try:
         _type = path[0]
         if path[1] == 'read':
             _id = path[2]
-            if doc := _get(cfs, user_id, _type, _id):
+            if doc := _get(rtdb, cfs, user_id, _type, _id):
                 return Response(doc, 200, mimetype='application/json')
         elif path[1] == 'query':
             try:
@@ -69,14 +86,25 @@ def resolve(user_id, path: List, cfs: fb_utils.Firestore, data=None) -> Response
                     # validate outside of the generator
                     data = StructuredQuery(**data)
                     _validate_query(cfs, _type, data)
-                    _response_generator = _query(cfs, user_id, _type, data)
+                    _response_generator = _query(rtdb, cfs, user_id, _type, data)
                 else:
-                    _response_generator = _query(cfs, user_id, _type, None)
+                    _response_generator = _query(rtdb, cfs, user_id, _type, None)
                 return Response(_response_generator, 200, mimetype='application/json')
             except (PydanticValidationError, FailedPrecondition) as pvr:
                 return Response(f'Invalid Query: {pvr}', 400, mimetype='text/plain')
         elif path[1] == 'create':
-            return Response('Not implemented', 501)
+            try:
+                _type = path[0]
+                # write docs is complex, so it returns a Response directly
+                return write_docs(
+                    rtdb,
+                    cfs,
+                    data,
+                    _type,
+                    user_id
+                )
+            except Exception as err:
+                return Response(str(err), 400)
     except IndexError:
         pass
     return Response(f'Not Found @ {path}', 404)
@@ -97,6 +125,7 @@ def _eligible_docs(cfs: fb_utils.Firestore, user_id: str, _type: str):
 
 
 def _get(
+    rtdb: fb_utils.RTDB,
     cfs: fb_utils.Firestore,
     user_id: str,
     _type: str,
@@ -107,7 +136,10 @@ def _get(
     uri = f'{APP_ID}/data/{_type}/{_id}'
     _doc = cfs.ref(full_path=uri).get()
     if _doc:
-        return json.dumps(_doc.to_dict(), sort_keys=True)
+        return json.dumps(
+            clean_msg(rtdb, _doc.to_dict(), _type, SchemaType.READ),
+            sort_keys=True
+        )
 
 
 def _validate_query(
@@ -122,6 +154,7 @@ def _validate_query(
 
 
 def _query(
+    rtdb: fb_utils.RTDB,
     cfs: fb_utils.Firestore,
     user_id: str,
     _type: str,
@@ -133,12 +166,14 @@ def _query(
     ref = cfs.ref(path=uri)
     # if the query is not ordered then we can stream it directly
     if not structured_query or not structured_query.is_ordered():
-        yield from unordered_query(ref, structured_query, _ids)
+        yield from unordered_query(_type, rtdb, ref, structured_query, _ids)
     else:
-        yield from ordered_query(ref, structured_query, _ids)
+        yield from ordered_query(_type, rtdb, ref, structured_query, _ids)
 
 
 def unordered_query(
+    type_: str,
+    rtdb: fb_utils.RTDB,
     query_: firestore_v1.query.Query,
     structured_query: StructuredQuery,
     _ids: Iterator[str]
@@ -166,7 +201,10 @@ def unordered_query(
         elif res and last:
             only = False
             yield ','
-            yield json.dumps(last.to_dict(), sort_keys=True)
+            yield json.dumps(
+                clean_msg(rtdb, last.to_dict(), type_, SchemaType.READ),
+                sort_keys=True
+            )
             yield ','
         elif res and not last:
             last = res[-1]
@@ -174,16 +212,24 @@ def unordered_query(
             if res:
                 only = False
                 yield ','.join(
-                    [json.dumps(doc.to_dict(), sort_keys=True) for doc in res[:len(res)]]
+                    [json.dumps(
+                        clean_msg(rtdb, doc.to_dict(), type_, SchemaType.READ),
+                        sort_keys=True
+                    ) for doc in res[:len(res)]]
                 )
     if last:
         if not only:
             yield ','
-        yield json.dumps(last.to_dict(), sort_keys=True)
+        yield json.dumps(
+            clean_msg(rtdb, last.to_dict(), type_, SchemaType.READ),
+            sort_keys=True
+        )
     yield ']'
 
 
 def all_matching_docs(
+    type_: str,
+    rtdb: fb_utils.RTDB,
     query_: firestore_v1.query.Query,
     structured_query: StructuredQuery,
     _ids: Iterator[str]
@@ -193,58 +239,124 @@ def all_matching_docs(
         if structured_query:
             query_ = structured_query.filter(query_).stream()
         for doc in query_:
-            yield doc.to_dict()
+            yield clean_msg(rtdb, doc.to_dict(), type_, SchemaType.READ)
 
 
 def ordered_query(
+    type_: str,
+    rtdb: fb_utils.RTDB,
     query_: firestore_v1.query.Query,
     structured_query: StructuredQuery,
     _ids: Iterator[str]
 ):
-    docs = list(all_matching_docs(query_, structured_query, _ids))
+    docs = list(all_matching_docs(type_, rtdb, query_, structured_query, _ids))
     docs = structured_query.order(docs)
     yield json.dumps(docs, sort_keys=True)
 
 
 # write
 
-def logiak_requires(user_name, doc):
-    '''
-    apk_version_created
-    "0.0.127+92"
-    apk_version_modified
-    "0.0.127+92"
-    created
-    "1599651061113"
-    data_collector_email
-    "mustapha.barda@ehealthnigeria.org"
-    email
-    "mustapha.barda@ehealthnigeria.org"
-    firebase_uuid
-    "1eJBkcPZDUQrjvBJ9FxOQ6M1c0r1"
-    group_uuid
-    "449351b4-bd5c-4358-bba8-8b8d410819c2"
-    latitude
-    "12.0199774"
-    longitude
-    "8.5637202"
-    managed_uuid
-    "cfc3278c-f808-4bcf-9f66-d91235ac3e2b"
-    modified
-    "1599651061112"
-    program
-    ""
-    quantity
-    "1.0"
-    role_uuid
-    "d6b81831-4bb2-4712-bcaa-e522c456a270"
-    slot
-    # null
-    uuid
-    # "14337a2a-f5b9-4ed7-943b-e4ccccfaf907"
-    version_created
-    # "0.0.42"
-    version_modified
-    # "0.0.42"
-    '''
-    pass
+
+def validate_for_write(
+    rtdb: fb_utils.RTDB,
+    docs: List[Dict],
+    version,
+    schema_name
+) -> List[Dict]:
+    write_schema = meta_schema_object(rtdb, version, schema_name, SchemaType.WRITE)
+    errors = []
+    payload = []
+    extra_fields_validator = schema_flag_extras(rtdb, schema_name, version)
+    for doc in docs:
+        doc['uuid'] = doc.get('uuid') or str(uuid4())
+        if extra_errors := extra_fields_validator(doc):
+            errors.extend(extra_errors)
+            continue
+        if not spavro.io.validate(write_schema, doc):
+            validator = avro_tools.AvroValidator(
+                schema=write_schema,
+                datum=doc
+            )
+            if validator.errors:
+                errors.append(validator.errors)
+        if not errors:  # don't bother building the list if we're going to raise
+            payload.append(doc)
+
+    if errors:
+        raise RuntimeError(f'Schema Validation (v:{version}) Failed: {errors}')
+    return payload
+
+
+def write_docs(
+    rtdb: fb_utils.RTDB,
+    cfs: fb_utils.Firestore,
+    data: Union[List, Dict],
+    schema_name: str,
+    user_id
+) -> Response:
+    info = _meta_info(rtdb)
+    version = info.get('defaultVersion')
+    if not isinstance(data, list):
+        data = [data]
+    try:
+        payload = validate_for_write(rtdb, data, version, schema_name)
+    except RuntimeError as err:
+        return Response(str(err), 400)
+    full_schema = meta_schema_object(rtdb, version, schema_name, SchemaType.ALL)
+    schema_errors = []
+    write_errors = []
+    for count, doc in enumerate(payload):
+        # create both versions of the doc, one with originator info, one without
+        # when we actually try to write, we try create, which is disallowed if the
+        # document exists, then failover to update
+        # we do both here to validate based on the full schema'd doc, not the update
+        # version
+        update_doc = compliant_update_doc(doc, version)
+        create_doc = compliant_create_doc(rtdb, update_doc, user_id)
+        if not spavro.io.validate(full_schema, create_doc):
+            validator = avro_tools.AvroValidator(
+                schema=full_schema,
+                datum=create_doc
+            )
+            # collect_failures, return 207 if any accepted, 201 if all, 400 if None
+            schema_errors.append(f'{create_doc["uuid"]} failed with {validator.errors}')
+        else:
+            try:
+                # actually write make the doc
+                write_doc(rtdb, cfs, create_doc, update_doc, schema_name)
+            except Exception as err:
+                write_errors.append(err)
+    errors = [*schema_errors, *write_errors]
+    if errors:
+        err_msg = f'{len(errors)} errors in {count + 1} submitted docs: {errors}'
+    if len(errors) >= count + 1:
+        if not schema_errors:
+            return Response(err_msg, 500)
+        else:
+            return Response(err_msg, 400)
+    elif not errors:
+        return Response(f'Created {count + 1} docs.', 201)
+    else:
+        return Response(err_msg, 207)
+
+
+def write_doc(
+    rtdb: fb_utils.RTDB,
+    cfs: fb_utils.Firestore,
+    create_doc: Dict,
+    update_doc: Dict,
+    schema_name: str
+):
+    _id = create_doc['uuid']
+    # in Logiak everything is a string internally, not sure why, but there it is
+    uri = f'{APP_ID}/data/{schema_name}/{_id}'
+    ref = cfs.ref(full_path=uri)
+    try:
+        # try to create first, if it fails, update
+        create_doc = cast_values_to_string(create_doc)
+        res = ref.create(create_doc)
+        return res
+    except AlreadyExists:
+        update_doc = cast_values_to_string(update_doc)
+        res = ref.update(update_doc)
+        return res

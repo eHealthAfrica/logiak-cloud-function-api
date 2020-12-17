@@ -25,10 +25,11 @@ import pytest
 
 from pydantic.error_wrappers import ValidationError as PydanticValidationError
 
-from test.app.cloud import meta, data, auth
+from test.app.cloud import meta, data, auth, schema
 from test.app.cloud.query import StructuredQuery
 
 from test.app.cloud.auth import require_auth
+from test.app.cloud.schema import schema_caster
 from test.app.cloud.utils import escape_email
 
 from . import (  # noqa
@@ -46,6 +47,7 @@ from . import (  # noqa
 
 
 TEST_USER = 'aboubacar.douno@ehealthnigeria.org'
+TEST_USER_2 = 'zubair.isah@ehealthnigeria.org'
 TEST_APP_VERSION = '0.0.42'
 TEST_APP_LANG = 'en'
 TEST_OBJECT_TYPE = 'batch'
@@ -246,13 +248,14 @@ def test__data_eligible_doc(cfs):  # noqa
 
 
 @pytest.mark.integration
-def test__data_get_single_doc(cfs):  # noqa
+def test__data_get_single_doc(rtdb, cfs):  # noqa
     _ids = data._eligible_docs(
         cfs,
         TEST_USER,
         TEST_OBJECT_TYPE)
     _id = _ids[0]
     _doc = data._get(
+        rtdb,
         cfs,
         TEST_USER,
         TEST_OBJECT_TYPE,
@@ -262,13 +265,14 @@ def test__data_get_single_doc(cfs):  # noqa
 
 
 @pytest.mark.integration
-def test__data_dont_get_bad_doc(cfs):  # noqa
+def test__data_dont_get_bad_doc(rtdb, cfs):  # noqa
     _ids = data._eligible_docs(
         cfs,
         TEST_USER,
         TEST_OBJECT_TYPE)
     _id = _ids[0]
     _doc = data._get(
+        rtdb,
         cfs,
         'bad-user',
         TEST_OBJECT_TYPE,
@@ -277,8 +281,9 @@ def test__data_dont_get_bad_doc(cfs):  # noqa
 
 
 @pytest.mark.integration
-def test__data_query_no_filter(cfs):  # noqa
+def test__data_query_no_filter(rtdb, cfs):  # noqa
     _gen = data._query(
+        rtdb,
         cfs,
         TEST_USER,
         TEST_OBJECT_TYPE,
@@ -297,8 +302,9 @@ def test__data_query_no_filter(cfs):  # noqa
 
 
 @pytest.mark.integration
-def test__data_query_no_matches(cfs):  # noqa
+def test__data_query_no_matches(rtdb, cfs):  # noqa
     _gen = data._query(
+        rtdb,
         cfs,
         'bad-user',
         TEST_OBJECT_TYPE,
@@ -438,22 +444,21 @@ def test__data_query_no_matches(cfs):  # noqa
         True)
 ])
 @pytest.mark.integration
-def test__data_query_dynamic(cfs, query, result_size, error):  # noqa
+def test__data_query_dynamic(rtdb, cfs, query, result_size, error):  # noqa
     if error:
         with pytest.raises(PydanticValidationError):
             query = StructuredQuery(**query)
     else:
         query = StructuredQuery(**query)
         _gen = data._query(
+            rtdb,
             cfs,
             TEST_USER,
             TEST_OBJECT_TYPE,
             query)
         # read it as Flask will report it
         res = ''.join(_gen)
-        LOG.debug(res)
         _docs = json.loads(res)
-        LOG.debug(json.dumps(_docs, indent=2))
         assert(len(_docs) == result_size)
 
 
@@ -650,7 +655,7 @@ def test__data_query_dynamic(cfs, query, result_size, error):  # noqa
         5),
 ])
 @pytest.mark.integration
-def test__data_query_order(cfs, query, field, result, first, size):  # noqa
+def test__data_query_order(rtdb, cfs, query, field, result, first, size):  # noqa
     base_query = {
         "where": {
             "filter": {
@@ -669,6 +674,7 @@ def test__data_query_order(cfs, query, field, result, first, size):  # noqa
     query = dict(**query, **base_query)
     query = StructuredQuery(**query)
     _gen = data._query(
+        rtdb,
         cfs,
         TEST_USER,
         TEST_OBJECT_TYPE,
@@ -676,7 +682,6 @@ def test__data_query_order(cfs, query, field, result, first, size):  # noqa
     # read it as Flask will report it
     res = ''.join(_gen)
     _docs = json.loads(res)
-    LOG.debug(json.dumps(_docs, indent=2))
     # "If you're not first, you're last" -- Ricky Bobby
     if first:
         assert(_docs[0][field] == result)
@@ -684,6 +689,146 @@ def test__data_query_order(cfs, query, field, result, first, size):  # noqa
         assert(_docs[-1][field] == result)
     assert(len(_docs) == size)
 
-# @pytest.mark.integration
-# def test__data_(cfs):  # noqa
-#     pass
+
+@pytest.mark.integration
+def test__data_validate_for_write(cfs, rtdb):  # noqa
+    all_gen = data._query(
+        rtdb,
+        cfs,
+        TEST_USER,
+        TEST_OBJECT_TYPE,
+        None)
+
+    all_gen = json.loads(''.join(all_gen))
+    docs = [
+        schema.strip_banned_from_msg(rtdb, msg, TEST_OBJECT_TYPE, schema.SchemaType.WRITE)
+        for msg in all_gen
+    ]
+
+    assert(
+        data.validate_for_write(rtdb, list(docs), TEST_APP_VERSION, TEST_OBJECT_TYPE) is not None
+    )
+
+
+@pytest.mark.parametrize('user,status_code,query', [
+    (
+        TEST_USER,
+        201,
+        None),  # all docs old schemas
+    (
+        TEST_USER_2,
+        201,
+        None),  # some docs old schemas
+    (
+        TEST_USER_2,
+        201,
+        {  # exclude all old schemas from set
+            "where": {
+                "filter": {
+                    "fieldFilter": {
+                        "field": {
+                            "fieldPath": "version_modified"
+                        },
+                        "op": "EQUAL",
+                        "value": {
+                            "stringValue": TEST_APP_VERSION
+                        }
+                    }
+                }
+            }
+        })
+])
+@pytest.mark.integration
+def test__data_write_docs__update_existing(cfs, rtdb, user, status_code, query):  # noqa
+    if query:
+        query = StructuredQuery(**query)
+    all_gen = data._query(
+        rtdb,
+        cfs,
+        user,
+        TEST_OBJECT_TYPE,
+        query)
+
+    all_gen = json.loads(''.join(all_gen))
+    docs = [
+        schema.strip_banned_from_msg(rtdb, msg, TEST_OBJECT_TYPE, schema.SchemaType.WRITE)
+        for msg in all_gen
+    ]
+    res = data.write_docs(rtdb, cfs, docs, TEST_OBJECT_TYPE, user)
+    assert(res.status_code == status_code), str(res.data)
+
+
+@pytest.mark.parametrize('user,status_code,docs', [
+    (
+        TEST_USER,
+        400,
+        '[{}]'
+    ),
+    (
+        TEST_USER_2,
+        400,
+        '''
+        [
+            {"bad": "doc"},
+            {
+            "allocation_id": "b622a63a-3c00-4d9e-ab72-423b80199d20",
+            "batch_id": "769a5218-98ec-4722-9fbf-dd9ad61a01dc",
+            "batch_number": "ac1237",
+            "date": "1599647081570",
+            "display_quantity": "652 Injectable",
+            "expiry_date": "1601420100000",
+            "initial_amount": "2000.0",
+            "item_id": "125",
+            "item_name": "Hepatitis E",
+            "manufacturer": "Kano vaccines",
+            "program": "Something",
+            "quantity": "900.0",
+            "vvm_status": "stage3"
+            }
+        ]
+        '''),
+    (
+        TEST_USER_2,
+        201,
+        '''
+        [
+          {
+            "allocation_id": "b622a63a-3c00-4d9e-ab72-423b80199d20",
+            "batch_id": "769a5218-98ec-4722-9fbf-dd9ad61a01dc",
+            "batch_number": "ac1234",
+            "date": "1599647081576",
+            "display_quantity": "650 Injectable",
+            "expiry_date": "1601420400000",
+            "initial_amount": "1000.0",
+            "item_id": "124",
+            "item_name": "Hepatitis B",
+            "manufacturer": "Kano vaccines",
+            "program": "",
+            "quantity": "650.0",
+            "vvm_status": "stage1"
+          },
+            {
+            "allocation_id": "b622a63a-3c00-4d9e-ab72-423b80199d20",
+            "batch_id": "769a5218-98ec-4722-9fbf-dd9ad61a01dc",
+            "batch_number": "ac1235",
+            "date": "1599647081570",
+            "display_quantity": "651 Injectable",
+            "expiry_date": "1601420100000",
+            "initial_amount": "2000.0",
+            "item_id": "125",
+            "item_name": "Hepatitis D",
+            "manufacturer": "Kano vaccines",
+            "program": "Something",
+            "quantity": "800.0",
+            "vvm_status": "stage2"
+            }
+          ]
+        ''')
+])
+@pytest.mark.integration
+def test__data_write_docs__create_new(cfs, rtdb, user, status_code, docs):  # noqa
+    TEST_MSG_CASTER = schema_caster(rtdb, TEST_OBJECT_TYPE, TEST_APP_VERSION)
+    docs = json.loads(docs)
+    docs = [TEST_MSG_CASTER(d) if 'bad' not in d else d for d in docs]
+    res = data.write_docs(rtdb, cfs, docs, TEST_OBJECT_TYPE, user)
+    assert(res.status_code == status_code), str(res.data)
