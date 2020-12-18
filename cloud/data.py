@@ -165,14 +165,15 @@ def _query(
     uri = f'{APP_ID}/data/{_type}'
     # if the query is not ordered then we can stream it directly
     if not structured_query or not structured_query.is_ordered():
-        yield from unordered_query(_type, rtdb, uri, structured_query, _ids)
+        yield from unordered_query(_type, rtdb, cfs, uri, structured_query, _ids)
     else:
-        yield from ordered_query(_type, rtdb, uri, structured_query, _ids)
+        yield from ordered_query(_type, rtdb, cfs, uri, structured_query, _ids)
 
 
 def unordered_query(
     type_: str,
     rtdb: fb_utils.RTDB,
+    cfs: fb_utils.Firestore,
     uri: str,
     structured_query: StructuredQuery,
     _ids: Iterator[str]
@@ -245,6 +246,7 @@ def all_matching_docs(
 def ordered_query(
     type_: str,
     rtdb: fb_utils.RTDB,
+    cfs: fb_utils.Firestore,
     uri: str,
     structured_query: StructuredQuery,
     _ids: Iterator[str]
