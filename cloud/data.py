@@ -123,7 +123,6 @@ def _eligible_docs(cfs: fb_utils.Firestore, user_id: str, _type: str):
     uri = f'{APP_ID}/slots/{escaped_id}/data/{_type}'
     res = cfs.list(path=uri)
     LOG.error(f'{user_id} is _is_eligible for {len(res)} of type {_type}')
-    LOG.error(f'{json.dumps(res)}')
     return res
 
 
@@ -209,17 +208,16 @@ def unordered_query(
                 clean_msg(rtdb, last.to_dict(), type_, SchemaType.READ),
                 sort_keys=True
             )
-        elif res and not last:
-            last = res[-1]
-            res = res[:-1]
-            if res:
-                only = False
-                yield ','.join(
-                    [json.dumps(
-                        clean_msg(rtdb, doc.to_dict(), type_, SchemaType.READ),
-                        sort_keys=True
-                    ) for doc in res[:len(res)]]
-                )
+        last = res[-1]
+        res = res[:-1]
+        if res:
+            only = False
+            yield ','.join(
+                [json.dumps(
+                    clean_msg(rtdb, doc.to_dict(), type_, SchemaType.READ),
+                    sort_keys=True
+                ) for doc in res[:len(res)]]
+            )
     if last:
         if not only:
             yield ','
