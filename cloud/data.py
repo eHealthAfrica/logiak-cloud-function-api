@@ -240,6 +240,8 @@ def all_matching_docs(
         query_ = ref.where(u'uuid', u'in', _from)
         if structured_query:
             query_ = structured_query.filter(query_).stream()
+        else:
+            query_ = query_.stream()
         for doc in query_:
             yield clean_msg(rtdb, doc.to_dict(), type_, SchemaType.READ)
 
