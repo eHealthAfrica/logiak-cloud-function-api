@@ -231,12 +231,14 @@ def unordered_query(
 def all_matching_docs(
     type_: str,
     rtdb: fb_utils.RTDB,
-    query_: firestore_v1.query.Query,
+    cfs: fb_utils.Firestore,
+    uri: str,
     structured_query: StructuredQuery,
     _ids: Iterator[str]
 ):
     for _from in _ids:
-        query_ = query_.where(u'uuid', u'in', _from)
+        ref = cfs.ref(path=uri)
+        query_ = ref.where(u'uuid', u'in', _from)
         if structured_query:
             query_ = structured_query.filter(query_).stream()
         for doc in query_:
@@ -251,8 +253,7 @@ def ordered_query(
     structured_query: StructuredQuery,
     _ids: Iterator[str]
 ):
-    ref = cfs.ref(path=uri)
-    docs = list(all_matching_docs(type_, rtdb, ref, structured_query, _ids))
+    docs = list(all_matching_docs(type_, rtdb, cfs, uri, structured_query, _ids))
     docs = structured_query.order(docs)
     yield json.dumps(docs, sort_keys=True)
 
