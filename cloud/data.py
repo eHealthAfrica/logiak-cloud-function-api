@@ -208,6 +208,7 @@ def unordered_query(
                 clean_msg(rtdb, last.to_dict(), type_, SchemaType.READ),
                 sort_keys=True
             )
+            yield ','
         last = res[-1]
         res = res[:-1]
         if res:
