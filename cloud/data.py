@@ -122,7 +122,7 @@ def _eligible_docs(cfs: fb_utils.Firestore, user_id: str, _type: str):
     escaped_id = escape_email(user_id)
     uri = f'{APP_ID}/slots/{escaped_id}/data/{_type}'
     res = cfs.list(path=uri)
-    LOG.error(f'{user_id} is _is_eligible for {len(res)} of type {_type}')
+    LOG.debug(f'{user_id} is _is_eligible for {len(res)} of type {_type}')
     return res
 
 
