@@ -201,7 +201,6 @@ def unordered_query(
             continue
         elif res and last:
             only = False
-            yield ','
             yield json.dumps(
                 clean_msg(rtdb, last.to_dict(), type_, SchemaType.READ),
                 sort_keys=True
