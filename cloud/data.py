@@ -121,7 +121,9 @@ def _is_eligible(cfs: fb_utils.Firestore, user_id: str, _type: str, _id) -> bool
 def _eligible_docs(cfs: fb_utils.Firestore, user_id: str, _type: str):
     escaped_id = escape_email(user_id)
     uri = f'{APP_ID}/slots/{escaped_id}/data/{_type}'
-    return cfs.list(path=uri)
+    res = cfs.list(path=uri)
+    LOG.debug(f'{user_id} is _is_eligible for {len(res)} of type {_type}')
+    return res
 
 
 def _get(
@@ -206,17 +208,17 @@ def unordered_query(
                 clean_msg(rtdb, last.to_dict(), type_, SchemaType.READ),
                 sort_keys=True
             )
-        elif res and not last:
-            last = res[-1]
-            res = res[:-1]
-            if res:
-                only = False
-                yield ','.join(
-                    [json.dumps(
-                        clean_msg(rtdb, doc.to_dict(), type_, SchemaType.READ),
-                        sort_keys=True
-                    ) for doc in res[:len(res)]]
-                )
+            yield ','
+        last = res[-1]
+        res = res[:-1]
+        if res:
+            only = False
+            yield ','.join(
+                [json.dumps(
+                    clean_msg(rtdb, doc.to_dict(), type_, SchemaType.READ),
+                    sort_keys=True
+                ) for doc in res[:len(res)]]
+            )
     if last:
         if not only:
             yield ','
@@ -240,6 +242,8 @@ def all_matching_docs(
         query_ = ref.where(u'uuid', u'in', _from)
         if structured_query:
             query_ = structured_query.filter(query_).stream()
+        else:
+            query_ = query_.stream()
         for doc in query_:
             yield clean_msg(rtdb, doc.to_dict(), type_, SchemaType.READ)
 
