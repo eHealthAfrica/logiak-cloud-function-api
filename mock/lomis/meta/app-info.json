@@ -3,11 +3,11 @@
   "auth": "EMAIL_PASSWORD",
   "defaultAppUuid": "dd025426-5376-444e-9135-92b0e4c943a0",
   "defaultLanguage": "en",
-  "defaultVersion": "0.0.42",
+  "defaultVersion": "0.0.74",
   "devMode": false,
   "deviceSharing": false,
   "offlineLogin": false,
   "serverUrl": "https://eha.logiak.com",
-  "uuid": "a988b4a4-1cae-4202-a988-c35637d55760",
+  "uuid": "4f5f6d96-62fd-4e1d-a6ba-2bfb37d0d0db",
   "variants": "en"
 }

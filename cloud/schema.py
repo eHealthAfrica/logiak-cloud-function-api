@@ -138,7 +138,13 @@ def schema_caster(rtdb: fb_utils.RTDB, schema_name: str, version: str) -> Callab
 
     def cast(msg: Dict) -> Dict:
         nonlocal trans
-        return {k: trans[k](v) for k, v in msg.items()}
+        res = {}
+        for k, v in msg.items():
+            try:
+                res[k] = trans[k](v)
+            except Exception:
+                pass
+        return res
 
     return cast
 
