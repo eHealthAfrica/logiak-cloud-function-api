@@ -163,18 +163,18 @@ def _query(
     # raises validation errors
     _ids = chunk(_eligible_docs(cfs, user_id, _type), 10)
     uri = f'{APP_ID}/data/{_type}'
-    ref = cfs.ref(path=uri)
     # if the query is not ordered then we can stream it directly
     if not structured_query or not structured_query.is_ordered():
-        yield from unordered_query(_type, rtdb, ref, structured_query, _ids)
+        yield from unordered_query(_type, rtdb, cfs, uri, structured_query, _ids)
     else:
-        yield from ordered_query(_type, rtdb, ref, structured_query, _ids)
+        yield from ordered_query(_type, rtdb, cfs, uri, structured_query, _ids)
 
 
 def unordered_query(
     type_: str,
     rtdb: fb_utils.RTDB,
-    query_: firestore_v1.query.Query,
+    cfs: fb_utils.Firestore,
+    uri: str,
     structured_query: StructuredQuery,
     _ids: Iterator[str]
 ):
@@ -192,7 +192,8 @@ def unordered_query(
     # formatting when we add the last one at the end.
     only = True
     for _from in _ids:
-        query_ = query_.where(u'uuid', u'in', _from)
+        ref = cfs.ref(path=uri)
+        query_ = ref.where(u'uuid', u'in', _from)
         if structured_query:
             query_ = structured_query.filter(query_)
         res = list(query_.stream())
@@ -230,12 +231,14 @@ def unordered_query(
 def all_matching_docs(
     type_: str,
     rtdb: fb_utils.RTDB,
-    query_: firestore_v1.query.Query,
+    cfs: fb_utils.Firestore,
+    uri: str,
     structured_query: StructuredQuery,
     _ids: Iterator[str]
 ):
     for _from in _ids:
-        query_ = query_.where(u'uuid', u'in', _from)
+        ref = cfs.ref(path=uri)
+        query_ = ref.where(u'uuid', u'in', _from)
         if structured_query:
             query_ = structured_query.filter(query_).stream()
         for doc in query_:
@@ -245,11 +248,12 @@ def all_matching_docs(
 def ordered_query(
     type_: str,
     rtdb: fb_utils.RTDB,
-    query_: firestore_v1.query.Query,
+    cfs: fb_utils.Firestore,
+    uri: str,
     structured_query: StructuredQuery,
     _ids: Iterator[str]
 ):
-    docs = list(all_matching_docs(type_, rtdb, query_, structured_query, _ids))
+    docs = list(all_matching_docs(type_, rtdb, cfs, uri, structured_query, _ids))
     docs = structured_query.order(docs)
     yield json.dumps(docs, sort_keys=True)
 
