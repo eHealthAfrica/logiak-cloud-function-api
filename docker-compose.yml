@@ -13,7 +13,7 @@ services:
       # FIREBASE_HOST: ${FIREBASE_HOST-}
       # FIREBASE_CREDENTIALS: ${FIREBASE_CREDENTIALS-}
       # FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID-}
-      LOGIAK_APP_ID: a988b4a4-1cae-4202-a988-c35637d55760 # the demo app (LoMIS) in emulator
+      LOGIAK_APP_ID: 4f5f6d96-62fd-4e1d-a6ba-2bfb37d0d0db # the demo app (LoMIS) in emulator
       WEB_API_KEY: ${WEB_API_KEY-}
     ports:
       - 9009:9009
