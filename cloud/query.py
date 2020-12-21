@@ -205,9 +205,7 @@ class Cursor:
                    for x, o in enumerate(orderBy) if (x < len(values))]
 
         def match_filter(i) -> bool:
-            checksum = [(db[x], fn(i), fn(i) == values[x]) for x, fn in enumerate(getters)]
             res = all([fn(i) == values[x] for x, fn in enumerate(getters)])
-            LOG.debug((checksum, res))
             return res
 
         return match_filter

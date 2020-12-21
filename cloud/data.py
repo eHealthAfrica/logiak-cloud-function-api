@@ -201,17 +201,13 @@ def unordered_query(
         res = list(query_.stream())
         if not res:
             continue
-        elif res and last:
-            only = False
-            yield ','
-            yield json.dumps(
-                clean_msg(rtdb, last.to_dict(), type_, SchemaType.READ),
-                sort_keys=True
-            )
-            yield ','
+        elif res and last is not None:
+            res.insert(0, last)
         last = res[-1]
         res = res[:-1]
         if res:
+            if not only:
+                yield ','
             only = False
             yield ','.join(
                 [json.dumps(
@@ -219,6 +215,7 @@ def unordered_query(
                     sort_keys=True
                 ) for doc in res[:len(res)]]
             )
+
     if last:
         if not only:
             yield ','
@@ -312,6 +309,7 @@ def write_docs(
     full_schema = meta_schema_object(rtdb, version, schema_name, SchemaType.ALL)
     schema_errors = []
     write_errors = []
+    count = 0
     for count, doc in enumerate(payload):
         # create both versions of the doc, one with originator info, one without
         # when we actually try to write, we try create, which is disallowed if the

@@ -46,12 +46,13 @@ from . import (  # noqa
 )
 
 
-TEST_USER = 'aboubacar.douno@ehealthnigeria.org'
+TEST_USER = 'faruk.shuaibu@ehealthnigeria.org'
 TEST_USER_2 = 'zubair.isah@ehealthnigeria.org'
-TEST_APP_VERSION = '0.0.42'
+TEST_APP_VERSION = '0.0.74'
 TEST_APP_LANG = 'en'
 TEST_OBJECT_TYPE = 'batch'
-TEST_OWNED_OF_TYPE = 5
+TEST_ELIGIBLE_OF_TYPE = 137
+TEST_AVAILABLE_OF_TYPE = 123
 
 
 @pytest.mark.integration
@@ -230,7 +231,7 @@ def test__data_eligible_docs(cfs):  # noqa
         len(data._eligible_docs(
             cfs,
             TEST_USER,
-            TEST_OBJECT_TYPE)) == TEST_OWNED_OF_TYPE)
+            TEST_OBJECT_TYPE)) == TEST_ELIGIBLE_OF_TYPE)
 
 
 @pytest.mark.integration
@@ -321,7 +322,7 @@ def test__data_query_no_matches(rtdb, cfs):  # noqa
 @pytest.mark.parametrize('query,result_size,error', [
     (
         {},
-        5,
+        TEST_AVAILABLE_OF_TYPE,
         False),
     (
         {
@@ -351,13 +352,13 @@ def test__data_query_no_matches(rtdb, cfs):  # noqa
                         },
                         "op": "EQUAL",
                         "value": {
-                            "stringValue": "Malaria"
+                            "stringValue": "Routine Immunization"
                         }
                     }
                 }
             }
         },
-        5,
+        TEST_AVAILABLE_OF_TYPE,
         False),
     (
         {
@@ -369,13 +370,13 @@ def test__data_query_no_matches(rtdb, cfs):  # noqa
                         },
                         "op": "GREATER_THAN",
                         "value": {
-                            "stringValue": "Lalaria"
+                            "stringValue": "Poutine Immunization"
                         }
                     }
                 }
             }
         },
-        5,
+        TEST_AVAILABLE_OF_TYPE,
         False),
     (
         {
@@ -391,7 +392,7 @@ def test__data_query_no_matches(rtdb, cfs):  # noqa
                                         },
                                         "op": "EQUAL",
                                         "value": {
-                                            "stringValue": "Malaria"
+                                            "stringValue": "Routine Immunization"
                                         }
                                     }
                                 }
@@ -404,7 +405,7 @@ def test__data_query_no_matches(rtdb, cfs):  # noqa
                                         },
                                         "op": "EQUAL",
                                         "value": {
-                                            "stringValue": "0076"
+                                            "stringValue": "2869x024A"
                                         }
                                     }
                                 }
@@ -414,7 +415,7 @@ def test__data_query_no_matches(rtdb, cfs):  # noqa
                 }
             }
         },
-        1,
+        2,
         False),
     (
         {
@@ -473,9 +474,9 @@ def test__data_query_dynamic(rtdb, cfs, query, result_size, error):  # noqa
             ]
         },
         'batch_number',
-        '001',
+        ',1809p1111',
         True,
-        5),
+        TEST_AVAILABLE_OF_TYPE),
     (
         {
             "orderBy": [
@@ -486,9 +487,9 @@ def test__data_query_dynamic(rtdb, cfs, query, result_size, error):  # noqa
             ]
         },
         'batch_number',
-        '0076',
+        'vnoo1',
         True,
-        5),
+        TEST_AVAILABLE_OF_TYPE),
     (
         {
             "orderBy": [
@@ -499,14 +500,14 @@ def test__data_query_dynamic(rtdb, cfs, query, result_size, error):  # noqa
             ],
             "startAt": {
                 "values": [
-                    {"stringValue": "001"}
+                    {"stringValue": ",1809p1111"}
                 ]
             }
         },
         'batch_number',
-        '001',
+        ',1809p1111',
         True,
-        5),
+        TEST_AVAILABLE_OF_TYPE),
     (
         {
             "orderBy": [
@@ -519,15 +520,15 @@ def test__data_query_dynamic(rtdb, cfs, query, result_size, error):  # noqa
                 "before": True,
                 "values": [
                     {
-                        "stringValue": "002",
+                        "stringValue": "0045mo96",
                     }
                 ]
             }
         },
         'batch_number',
-        '003',
+        '0049F107',
         True,
-        3),
+        121),
     (
         {
             "orderBy": [
@@ -538,9 +539,9 @@ def test__data_query_dynamic(rtdb, cfs, query, result_size, error):  # noqa
             ]
         },
         'batch_number',
-        '0076',
+        'vnoo1',
         True,
-        5),
+        TEST_AVAILABLE_OF_TYPE),
     (
         {
             "orderBy": [
@@ -551,9 +552,9 @@ def test__data_query_dynamic(rtdb, cfs, query, result_size, error):  # noqa
             ]
         },
         'batch_number',
-        '0076',
+        'vnoo1',
         False,
-        5),
+        TEST_AVAILABLE_OF_TYPE),
     (
         {
             "orderBy": [
@@ -564,12 +565,12 @@ def test__data_query_dynamic(rtdb, cfs, query, result_size, error):  # noqa
             ],
             "startAt": {
                 "values": [
-                    {"stringValue": "002"}
+                    {"stringValue": "0045mo96"}
                 ]
             }
         },
         'batch_number',
-        '002',
+        '0045mo96',
         True,
         2),
     (
@@ -584,13 +585,13 @@ def test__data_query_dynamic(rtdb, cfs, query, result_size, error):  # noqa
                 "before": True,
                 "values": [
                     {
-                        "stringValue": "002",
+                        "stringValue": "0045mo96",
                     }
                 ]
             }
         },
         'batch_number',
-        '001',
+        ',1809p1111',
         True,
         1),
     (
@@ -603,12 +604,12 @@ def test__data_query_dynamic(rtdb, cfs, query, result_size, error):  # noqa
             ],
             "endAt": {
                 "values": [
-                    {"stringValue": "003"}
+                    {"stringValue": "0049F107"}
                 ]
             }
         },
         'batch_number',
-        '003',
+        '0049F107',
         False,
         3),
     (
@@ -623,15 +624,15 @@ def test__data_query_dynamic(rtdb, cfs, query, result_size, error):  # noqa
                 "before": True,
                 "values": [
                     {
-                        "stringValue": "003",
+                        "stringValue": "0049F107",
                     }
                 ]
             }
         },
         'batch_number',
-        '004',
+        '0049F108',
         False,
-        2),
+        120),
     (
         {
             "orderBy": [
@@ -644,15 +645,15 @@ def test__data_query_dynamic(rtdb, cfs, query, result_size, error):  # noqa
                 "before": False,
                 "values": [
                     {
-                        "stringValue": "001",
+                        "stringValue": ",1809p1111",
                     }
                 ]
             }
         },
         'batch_number',
-        '001',
+        ',1809p1111',
         False,
-        5),
+        TEST_AVAILABLE_OF_TYPE),
 ])
 @pytest.mark.integration
 def test__data_query_order(rtdb, cfs, query, field, result, first, size):  # noqa
@@ -665,7 +666,7 @@ def test__data_query_order(rtdb, cfs, query, field, result, first, size):  # noq
                     },
                     "op": "EQUAL",
                     "value": {
-                        "stringValue": "Malaria"
+                        "stringValue": "Routine Immunization"
                     }
                 }
             }
@@ -683,11 +684,11 @@ def test__data_query_order(rtdb, cfs, query, field, result, first, size):  # noq
     res = ''.join(_gen)
     _docs = json.loads(res)
     # "If you're not first, you're last" -- Ricky Bobby
+    assert(len(_docs) == size)
     if first:
         assert(_docs[0][field] == result)
     else:
         assert(_docs[-1][field] == result)
-    assert(len(_docs) == size)
 
 
 @pytest.mark.integration
