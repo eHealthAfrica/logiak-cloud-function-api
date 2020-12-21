@@ -161,37 +161,36 @@ def get_json(path: str):
 @pytest.mark.integration
 @pytest.fixture(scope='session')
 def sample_project(rtdb, cfs, check_local_firebase_readyness):
-    # PATH = os.getcwd() + '/app/mock/lomis'
+    PATH = os.getcwd() + '/app/mock/lomis'
 
-    # META = get_json(f'{PATH}/meta/app-info.json')
+    META = get_json(f'{PATH}/meta/app-info.json')
 
-    # APP_ID = META['uuid']
-    # APP_ALIAS = META['defaultAppUuid']
-    # APP_VERSION = META['defaultVersion']
-    # APP_LANG = META['variants']
+    APP_ID = META['uuid']
+    APP_ALIAS = META['defaultAppUuid']
+    APP_VERSION = META['defaultVersion']
+    APP_LANG = META['variants']
 
-    # rtdb.reference(f'/{APP_ID}/settings').set(META)
-    # inits = get_json(f'{PATH}/meta/inits.json')
-    # rtdb.reference(f'/{APP_ID}/inits').set(inits)
+    rtdb.reference(f'/{APP_ID}/settings').set(META)
+    inits = get_json(f'{PATH}/meta/inits.json')
+    rtdb.reference(f'/{APP_ID}/inits').set(inits)
 
-    # rtdb.reference(
-    #     f'apps/{APP_ALIAS}/{escape_version(APP_VERSION)}/{APP_LANG}/json') \
-    #     .set(
-    #         json.dumps(get_json(f'{PATH}/meta/app.json'))
-    # )
-    # schemas = get_json(f'{PATH}/meta/schemas.json')
-    # for i in schemas.keys():
-    #     rtdb.reference(
-    #         f'objects/{APP_ID}/{escape_version(APP_VERSION)}/{i}') \
-    #         .set(
-    #             schemas[i]
-    #     )
+    rtdb.reference(
+        f'apps/{APP_ALIAS}/{escape_version(APP_VERSION)}/{APP_LANG}/json') \
+        .set(
+            json.dumps(get_json(f'{PATH}/meta/app.json'))
+    )
+    schemas = get_json(f'{PATH}/meta/schemas.json')
+    for i in schemas.keys():
+        rtdb.reference(
+            f'objects/{APP_ID}/{escape_version(APP_VERSION)}/{i}') \
+            .set(
+                schemas[i]
+        )
 
-    # for _type in ['data', 'slots', 'tx']:
-    #     _all = get_json(f'{PATH}/data/{_type}.json')
-    #     _path = f'{APP_ID}'
-    #     fb_utils.cfs_write(cfs, _all, _path)
-    yield
+    for _type in ['data', 'slots', 'tx']:
+        _all = get_json(f'{PATH}/data/{_type}.json')
+        _path = f'{APP_ID}'
+        fb_utils.cfs_write(cfs, _all, _path)
 
 
 @pytest.mark.integration
