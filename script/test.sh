@@ -35,8 +35,5 @@ docker-compose build >> /dev/null
 if [[ $MODE == "all" ]]; then
     docker-compose run --rm test-library test_all
 else
-    docker-compose run --rm test-library test "$MODE"    
+    docker-compose run --rm test-library test "$MODE"
 fi
-
-
-

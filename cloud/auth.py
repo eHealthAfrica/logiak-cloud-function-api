@@ -45,9 +45,11 @@ def require_auth(auth: 'AuthHandler'):
             reqs = ['Logiak-User-Id', 'Logiak-Session-Key']
             if (missing := missing_required(headers, reqs)):  # noqa
                 return Response(f'Missing required headers: {missing}', 400)
+
             user_id, user_token = headers[reqs[0]], headers[reqs[1]]
             if not auth.verify_session(user_id, user_token):
                 return Response('Bad Session', 401)
+
             return fn(request, *args, **kwargs)
         return wrapper
     return handler
@@ -138,10 +140,13 @@ def auth_request(data, auth_handler):
     required = ['username', 'password']
     if (missing := missing_required(data, required)):
         return Response(f'Missing expected data: {missing}', 400)
+
     if not auth_handler.sign_in_with_email_and_password(data['username'], data['password']):
         return Response('Bad Credentials', 401)
+
     if not auth_handler.user_has_app_access(data['username']):
         return Response('Invalid user for application', 401)
+
     session = auth_handler.create_session(data['username'])
     return Response(
         json.dumps(session),
