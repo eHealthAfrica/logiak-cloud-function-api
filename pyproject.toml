@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "logiak-cloud-function-api"
+version = "0.2.1"
+description = "Cloud function for http access to a Logiak project"
+authors = ["eHealth Africa <info@ehealthafrica.org>"]
+license = "Apache-2.0"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+Flask = "^1.1.4"
+cachetools = "^4.2.2"
+pydantic = "^1.8.2"
+google-cloud-firestore = "^2.1.1"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

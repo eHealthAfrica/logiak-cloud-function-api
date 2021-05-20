@@ -2,7 +2,7 @@ aether.python
 cachetools
 coverage
 firebase_admin
-flask
+flask==1.1.4
 flake8
 functions-framework==1.0.0
 google.cloud

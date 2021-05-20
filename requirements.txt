@@ -1,6 +1,6 @@
 aether.python
 cachetools
 firebase_admin
-flask
+flask==1.1.4
 google-cloud-firestore
 pydantic
